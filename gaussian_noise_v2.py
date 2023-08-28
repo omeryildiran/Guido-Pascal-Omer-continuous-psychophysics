@@ -90,25 +90,17 @@ while continueRoutine:
 
     # save a screenshot of the stimuli if its second frame
     if frameN == 0:
-        win.getMovieFrame(buffer='back')
-        # if there is not a folder named recorded, create one
-        try:
-            os.mkdir('recorded')
-        except:
-            pass
-        # convert stim to image
-        stim_array=stim.image
-        
-        # scale stim_array to be between 0 and 255
-        stim_array = stim_array * 255  # Scale to [0, 255]
-        #reverse black and white
-        stim_array=255-stim_array
-        stim_array=stim_array.astype(np.uint8)
-        # save the stim as png
-        new_p=Image.fromarray(stim_array)
-        new_p = new_p.convert("L")
-        new_p.save('recorded/stim_'+str(blob_width)+'.png')
-
+        # # convert stim to image
+        # stim_array=stim.image       
+        # # scale stim_array to be between 0 and 255
+        # stim_array = stim_array * 255  # Scale to [0, 255]
+        # #reverse black and white
+        # stim_array=255-stim_array
+        # stim_array=stim_array.astype(np.uint8)
+        # # save the stim as png
+        # new_p=Image.fromarray(stim_array)
+        # new_p = new_p.convert("L")
+        # new_p.save('recorded/stim_'+str(blob_width)+'.png')
         # also save the plot of the intensity profile
         plt.savefig('recorded/intensity_profile_'+str(blob_width)+'.png')
     plt.clf()
