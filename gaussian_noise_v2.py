@@ -44,7 +44,7 @@ def generateBlob(space_constant):
 
     # blob properties conversion
     blob_std = space_constant / (2 * np.sqrt(2 * np.log(2)))
-    blob_amplitude = total_lum / (2*np.pi*blob_std ** 2) # Adjust blob amplitude to keep total blob energy constant
+    blob_amplitude =total_lum / (2*np.pi*blob_std ** 2) # Adjust blob amplitude to keep total blob energy constant
     blob = blob_amplitude * np.exp(-((x - noise_size[1] / 2)**2 + (y - noise_size[0] / 2)**2) / (2 * blob_std**2))
     return blob
 
@@ -75,42 +75,31 @@ while continueRoutine:
     # flip the window
     win.flip()
 
-    # plot intensity profiles real time
+    # save the intensity profile for each frame
     intensity_profile = stim_array[noise_size[1]//2,:]
     # normalize the intensity profile
     normalized_profile = (intensity_profile - intensity_profile.min()) / (intensity_profile.max() - intensity_profile.min())
     intensity_profiles.append(normalized_profile)
-    plt.plot(normalized_profile)
+    #intensity_profiles.append(intensity_profile)
+    # plot the intensity profile for each frame
+    #plt.plot(intensity_profiles)
     plt.plot(intensity_profiles[-1]) 
     plt.xlabel("Horizontal Position (pixels)")
     plt.ylabel("Intensity")
     plt.title("Cross-Sections of Intensity"+ "  Frame: " + str(frameN))
+    plt.ylim(0, 1)
     plt.pause(0.0001)
-
-
-    # save a screenshot of the stimuli if its second frame
     if frameN == 0:
-        # # convert stim to image
-        # stim_array=stim.image       
-        # # scale stim_array to be between 0 and 255
-        # stim_array = stim_array * 255  # Scale to [0, 255]
-        # #reverse black and white
-        # stim_array=255-stim_array
-        # stim_array=stim_array.astype(np.uint8)
-        # # save the stim as png
-        # new_p=Image.fromarray(stim_array)
-        # new_p = new_p.convert("L")
-        # new_p.save('recorded/stim_'+str(blob_width)+'.png')
-        # also save the plot of the intensity profile
         plt.savefig('recorded/intensity_profile_'+str(blob_width)+'.png')
     plt.clf()
-    if t > 2:
+
+    # end the loop after given seconds
+    if t > 10:
         continueRoutine = False
     # check for quit (typically the Esc key)
     if endExpNow or defaultKeyboard.getKeys(keyList=["escape"]):
         core.quit()
     
-
 # Close the window
 event.waitKeys()
 win.close()
@@ -128,6 +117,7 @@ plt.xticks(np.arange(0, noise_size[0], 100), np.arange(-5, 6, 1))
 plt.xlabel("Horizontal Position (degrees)")
 plt.ylabel("Normalized Intensity")
 plt.title("Cross-Sections of Normalized Intensity")
+plt.ylim(0, 1)
 # legend for each frame
 plt.legend(np.arange(len(intensity_profiles)))
 plt.savefig('recorded/intensity_profiles_'+str(blob_width)+'.png')
@@ -141,8 +131,9 @@ plt.plot(mean_profile)
 # x label in degrees of visual angle
 plt.xticks(np.arange(0, noise_size[0], 100), np.arange(-5, 6, 1))
 plt.xlabel("Horizontal Position (degrees)")
-plt.ylabel("Normalized Intensity")
-plt.title("Mean of Normalized Intensity")
+plt.ylabel("Intensity")
+plt.title("Mean of Intensity")
+plt.ylim(0, 1)
 plt.savefig('recorded/mean_intensity_profile_'+str(blob_width)+'.png')
 plt.show()
 
