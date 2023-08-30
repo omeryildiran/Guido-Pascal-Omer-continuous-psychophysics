@@ -6,6 +6,7 @@ from psychopy.hardware import keyboard
 import matplotlib.pyplot as plt
 from PIL import Image
 import os
+from dva_to_pix import arcmin_to_px
 # Create PsychoPy window covering the whole screen
 win = visual.Window(size=(1024, 1024), fullscr=False, monitor='testMonitor', units='pix', color=[0, 0, 0])#, useFBO=True)
 
@@ -20,7 +21,7 @@ noise_size = win.size  # Use the window size for noise texture
 
 noise_arcmin = 11  # Standard deviation for pixel noise || noise intensity Adjust to control noise intensity
 # convert arcmin to std for Gaussian
-noise_std = noise_arcmin / (2 * np.sqrt(2 * np.log(2)))
+noise_std =arcmin_to_px(noise_arcmin,h=14,d=45,r=1024)
 
 
 # Create some handy timers
@@ -28,27 +29,28 @@ globalClock = core.Clock()  # to track the time since experiment started
 routineTimer = core.Clock()  # to track time remaining of each (possibly non-slip) routine 
 
 # Background noise
-def gaussNoise(noise_intensity=noise_std):
-    noise = np.random.normal(0, 3, size=noise_size)
-    noise = np.clip(noise, -3*noise_std, 3 * noise_std)    
-    noise = (noise - noise.min()) / (noise.max() - noise.min()) * 2 - 1
-    #noise_stim = visual.ImageStim(win, image=noise, size=noise_size, units='pix')
+def gaussNoise(noise_intensity=1):
+    noise = np.random.normal(0, noise_intensity, size=noise_size)
+    noise = np.clip(noise, -3*noise_intensity, 3*noise_intensity)    
+    noise = (noise - noise.min()) / (noise.max() - noise.min())*2-1
     return noise
 
 
-initial_blob_std= 11 / (2 * np.sqrt(2 * np.log(2)))  # Convert arcmin to std for Gaussian
-total_lum=1*(2*np.pi*initial_blob_std ** 2)*1 # Total luminance of blob
+
+blob_width=11 # in arcmins
+initial_blob_std= arcmin_to_px(arcmin=11) 
+
+# blob properties conversion
+#blob_std = space_constant / (2 * np.sqrt(2 * np.log(2))) # Convert arcmin to std for Gaussian
+blob_std=arcmin_to_px(arcmin=blob_width,h=13,d=45,r=1024)
+total_lum=1*(2*np.pi*initial_blob_std ** 2)*1 # Total luminance of blobm
+blob_amplitude =total_lum / (2*np.pi*blob_std ** 2) # Adjust blob amplitude to keep total blob energy constant
+
 # Blob generator
 def generateBlob(space_constant):
     y, x = np.meshgrid(np.arange(noise_size[1]), np.arange(noise_size[0]))
-
-    # blob properties conversion
-    blob_std = space_constant / (2 * np.sqrt(2 * np.log(2)))
-    blob_amplitude =total_lum / (2*np.pi*blob_std ** 2) # Adjust blob amplitude to keep total blob energy constant
-    blob = blob_amplitude * np.exp(-((x - noise_size[1] / 2)**2 + (y - noise_size[0] / 2)**2) / (2 * blob_std**2))
+    blob = blob_amplitude * np.exp(-((x - noise_size[0] / 2)**2 + (y - noise_size[1] / 2)**2) / (2 * blob_std**2))
     return blob
-
-
 
 intensity_profiles = []  # List to store intensity profiles
 ##################### Loop Start #####################
@@ -56,7 +58,6 @@ continueRoutine = True
 t = 0
 _timeToFirstFrame = win.getFutureFlipTime(clock="now")
 frameN = -1
-blob_width=11 # in arcmins
 while continueRoutine:
     t = routineTimer.getTime()
     tThisFlip = win.getFutureFlipTime(clock=routineTimer)
@@ -67,8 +68,10 @@ while continueRoutine:
     blob=generateBlob(blob_width)    # Create Gaussian blob
 
     # combine blob and noise
-    stim_array=blob + noise
-    # create a new psychopy image with the blob and noise
+    stim_array=blob+noise
+    # clip noise values at three standard deviations
+    #stim_array = np.clip(stim_array, -3 * blob_std, 3 * blob_std)
+    # create a new psychopy image with the blob and 
     stim = visual.ImageStim(win, image=stim_array, size=noise_size, units='pix')
     # draw the stim
     stim.draw()
@@ -88,13 +91,13 @@ while continueRoutine:
     plt.ylabel("Intensity")
     plt.title("Cross-Sections of Intensity"+ "  Frame: " + str(frameN))
     plt.ylim(0, 1)
-    plt.pause(0.0001)
+    #plt.pause(0.0001)
     if frameN == 0:
         plt.savefig('recorded/intensity_profile_'+str(blob_width)+'.png')
     plt.clf()
 
     # end the loop after given seconds
-    if t > 10:
+    if t > 17:
         continueRoutine = False
     # check for quit (typically the Esc key)
     if endExpNow or defaultKeyboard.getKeys(keyList=["escape"]):
