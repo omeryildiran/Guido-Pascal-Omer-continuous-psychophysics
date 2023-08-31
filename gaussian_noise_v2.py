@@ -37,8 +37,8 @@ def gaussNoise(noise_intensity=1):
 
 
 
-blob_width=11 # in arcmins
-initial_blob_std= arcmin_to_px(arcmin=11) 
+blob_width=17 # in arcmins
+initial_blob_std= arcmin_to_px(arcmin=11,h=13,d=45,r=1024) 
 
 # blob properties conversion
 #blob_std = space_constant / (2 * np.sqrt(2 * np.log(2))) # Convert arcmin to std for Gaussian
