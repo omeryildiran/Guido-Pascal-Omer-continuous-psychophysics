@@ -1,41 +1,40 @@
 from psychopy import visual, core, event
 import numpy as np
-from psychopy.visual import filters
 import psychopy.iohub as io
 from psychopy.hardware import keyboard
 import matplotlib.pyplot as plt
 from PIL import Image
 import os
 from dva_to_pix import arcmin_to_px
-from numpy.random import random, randint, normal, shuffle, choice as randchoice
-from psychopy import sound, gui, visual, core, data, event, logging, clock, colors, layout
+from numpy.random import choice as randchoice
+#from numpy.random import random, randint, normal, shuffle, choice as randchoice
+#from psychopy import sound, gui, visual, core, data, event, logging, clock, colors, layout
 
 # Create PsychoPy window covering the whole screen
-win = visual.Window(size=(1024, 1024), fullscr=False, monitor='testMonitor', units='pix', color=[0, 0, 0], useFBO=True)
+win = visual.Window(size=(1024, 1024), fullscr=False, monitor='testMonitor', units='pix', color=[0, 0, 0])#, useFBO=True)
 
-# Store info about the experiment session
-psychopyVersion = '2022.2.4'
-expName = 'expectation_shapes_perceived_time'  # from the Builder filename that created this script
-expInfo = {
-    'participant': f"{randint(0, 999999):06.0f}",
-    'session': '001',
-}
-expInfo['date'] = data.getDateStr()  # add a simple timestamp
-expInfo['expName'] = expName
-expInfo['psychopyVersion'] = psychopyVersion
+# # Store info about the experiment session
+# psychopyVersion = '2022.2.4'
+# expName = 'expectation_shapes_perceived_time'  # from the Builder filename that created this script
+# expInfo = {
+#     'participant': f"{randint(0, 999999):06.0f}",
+#     'session': '001',
+# }
+# expInfo['date'] = data.getDateStr()  # add a simple timestamp
+# expInfo['expName'] = expName
+# expInfo['psychopyVersion'] = psychopyVersion
 
-expInfo['frameRate'] = win.getActualFrameRate()
-if expInfo['frameRate'] != None:
-    frameDur = 1.0 / round(expInfo['frameRate'])
-else:
-    frameDur = 1.0 / 60.0  # could not measure, so guess
-frameRate=expInfo['frameRate']
+frameRate=win.getActualFrameRate()
+# expInfo['frameRate']=frameRate
+# if expInfo['frameRate'] != None:
+#     frameDur = 1.0 / round(expInfo['frameRate'])
+# else:
+#     frameDur = 1.0 / 60.0  # could not measure, so guess
 defaultKeyboard = keyboard.Keyboard(backend='iohub')
 endExpNow = False  # flag for 'escape' or other condition => quit the exp
 
 
 # Noise properties
-noise_duration = 10  # Duration of noise presentation in seconds
 noise_size = win.size  # Use the window size for noise texture
 noise_arcmin = 11  # Standard deviation for pixel noise || noise intensity Adjust to control noise intensity
 noise_std =arcmin_to_px(noise_arcmin,h=14,d=45,r=1024)# convert arcmin to std for Gaussian
@@ -73,60 +72,66 @@ def generateBlob(space_constant):
 # Blob motion by changing velocity on x and y axis according to the brownian motion
 def generateBrownianMotion(field_size, velocity_std, duration):
     # Generate random velocity for each frame
-    num_frames = int(duration * frameRate)
+    num_frames = int(duration * frameRate)+10
     velocies_x=np.random.normal(0, velocity_std, num_frames)
     velocies_y=np.random.normal(0, velocity_std, num_frames)
-
     # new positions = old position + velocity
     pos_x = np.cumsum(velocies_x)
     pos_y = np.cumsum(velocies_y)
-
     # clip positions to stay within the field
     pos_x = np.clip(pos_x, 0, field_size )
     pos_y = np.clip(pos_y, 0, field_size )
-
     return (pos_x, pos_y)
 
-# pre-generate noise and blob arrays
-noise_arrays = []
-blob_arrays = []
-for frameN in range(int(noise_duration * frameRate)):
-    noise_arrays.append(gaussNoise(noise_std))
-    blob_arrays.append(generateBlob(blob_std))
+print(frameRate)
+
+""" Pregenerate noise and blob instances for each frame """
+duration=20 # in seconds
+noise_instances=[]
+noise_instances.append(gaussNoise())# first noise
+blob=generateBlob(blob_width)    # Create Gaussian blob
+pos_x, pos_y = generateBrownianMotion(field_size=noise_size[0], velocity_std=1, duration=duration)# pre-generate brownian motion
+blob_rolleds=[]
+blob_rolleds.append(blob) # first blob instance
+
+## create visual patches for each frame
+final_stims=[]
+for i in range(int(duration*frameRate)+10): #assuming program can achieve the actual frame rate of screen
+    noise_instances.append(gaussNoise())# pre-generate noise
+
+    blob_rolleds.append(np.roll(blob, (int(pos_x[(i)]), int(pos_y[(i)])), axis=(1, 0))) # Shift blob according to the brownian motion
+
+    stim_array=blob_rolleds[i]+noise_instances[i]
+    #stim_array = (stim_array - stim_array.min()) / (stim_array.max() - stim_array.min())*2-1 # normalize the stim array
+    final_stim = visual.PatchStim(win, tex=stim_array, size=noise_size, interpolate=False,units='pix')
+    final_stims.append(final_stim)
+    final_stims[-1].draw()  # first draw is slower. So do it now.
 
 
 ##################### Loop Start #####################
 intensity_profiles = []  # List to store intensity profiles
 continueRoutine = True
-t = 0
 _timeToFirstFrame = win.getFutureFlipTime(clock="now")
 frameN = -1
-duration=30
+win.clearBuffer()
+routineTimer.reset()
+t = 0
 while continueRoutine:
     t = routineTimer.getTime()
     tThisFlip = win.getFutureFlipTime(clock=routineTimer)
     tThisFlipGlobal = win.getFutureFlipTime(clock=None)
     frameN = frameN + 1  # number of completed frames (so 0 is the first frame)
 
-    # update/draw components on each frame
-    noise=gaussNoise() # noise instance
-    # Generate Brownian motion positions
-    pos_x, pos_y = generateBrownianMotion(field_size=noise_size[0], velocity_std=50, duration=20)
-    # Get current position based on the current time (frame)
-    current_x = int(pos_x[(frameN)])
-    current_y = int(pos_y[(frameN)])    
-    
-    blob=generateBlob(blob_width)    # Create Gaussian blob
-    shifted_blob = np.roll(blob, (current_x, current_y), axis=(1, 0)) # Shift blob according to the brownian motion
-    # combine blob and noise
-    stim_array=shifted_blob+noise
 
-    # clip noise values at three standard deviations
-    #stim_array = np.clip(stim_array, -3 * blob_std, 3 * blob_std)
-    # create a new psychopy image with the blob and 
-    stim = visual.ImageStim(win, image=stim_array, size=noise_size, units='pix')
+    # show frame number on top right corner
+    #frame_text = visual.TextStim(win, text="Frame: "+str(frameN), pos=(win.size[0]/2-150,win.size[1]/2-100 ), color=[1,0,0], height=50, alignHoriz='center', alignVert='center', units='pix')
+    #frame_text.draw()
+
     # draw the stim
-    stim.draw()
+    final_stims[frameN].draw()
+    print(frameN)
+    print("time="+str(t))
+
     # flip the window
     win.flip()
 
