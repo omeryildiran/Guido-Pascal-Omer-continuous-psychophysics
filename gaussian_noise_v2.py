@@ -7,40 +7,50 @@ from PIL import Image
 import os
 from dva_to_pix import arcmin_to_px
 from numpy.random import choice as randchoice
-#from numpy.random import random, randint, normal, shuffle, choice as randchoice
-#from psychopy import sound, gui, visual, core, data, event, logging, clock, colors, layout
+from numpy.random import random, randint, normal, shuffle, choice as randchoice
+from psychopy import sound, gui, visual, core, data, event, logging, clock, colors, layout
 
 # Create PsychoPy window covering the whole screen
-win = visual.Window(size=(1024, 1024), fullscr=False, monitor='testMonitor', units='pix', color=[0, 0, 0])#, useFBO=True)
+win = visual.Window(size=(512, 512), fullscr=False, monitor='testMonitor', units='pix', color=[0, 0, 0], useFBO=True)
+field_size=(512,512)
 
-# # Store info about the experiment session
-# psychopyVersion = '2022.2.4'
-# expName = 'expectation_shapes_perceived_time'  # from the Builder filename that created this script
-# expInfo = {
-#     'participant': f"{randint(0, 999999):06.0f}",
-#     'session': '001',
-# }
-# expInfo['date'] = data.getDateStr()  # add a simple timestamp
-# expInfo['expName'] = expName
-# expInfo['psychopyVersion'] = psychopyVersion
+#setup screen properties
+screen_width=31
+screen_height=17.5
+screen_distance=50
+### Set the monitor to the correct distance and size
+#win.monitor.setSizePix(field_size)
+# win.mouseVisible = False
+win.monitor.setWidth(screen_width)
+win.monitor.setDistance(screen_distance)
+
+# Store info about the experiment session
+psychopyVersion = '2022.2.4'
+expName = 'expectation_shapes_perceived_time'  # from the Builder filename that created this script
+expInfo = {
+    'participant': f"{randint(0, 999999):06.0f}",
+    'session': '001',
+}
+expInfo['date'] = data.getDateStr()  # add a simple timestamp
+expInfo['expName'] = expName
+expInfo['psychopyVersion'] = psychopyVersion
 
 frameRate=win.getActualFrameRate()
-# expInfo['frameRate']=frameRate
-# if expInfo['frameRate'] != None:
-#     frameDur = 1.0 / round(expInfo['frameRate'])
-# else:
-#     frameDur = 1.0 / 60.0  # could not measure, so guess
+expInfo['frameRate']=frameRate
+if expInfo['frameRate'] != None:
+    frameDur = 1.0 / round(expInfo['frameRate'])
+else:
+    frameDur = 1.0 / 60.0  # could not measure, so guess
 defaultKeyboard = keyboard.Keyboard(backend='iohub')
 endExpNow = False  # flag for 'escape' or other condition => quit the exp
 
 
 # Noise properties
-noise_size = win.size  # Use the window size for noise texture
+noise_size = field_size  # Use the window size for noise texture
 noise_arcmin = 11  # Standard deviation for pixel noise || noise intensity Adjust to control noise intensity
-noise_std =arcmin_to_px(noise_arcmin,h=14,d=45,r=1024)# convert arcmin to std for Gaussian
+noise_std =arcmin_to_px(noise_arcmin,h=screen_height,d=screen_distance,r=field_size[0])# convert arcmin to std for Gaussian
 
 # Brownian motion properties
-field_size = 300  # Size of the square field in pixels
 velocity_std = 1.0  # Standard deviation of Gaussian white noise velocities
 
 # Create some handy timers
@@ -51,15 +61,15 @@ routineTimer = core.Clock()  # to track time remaining of each (possibly non-sli
 def gaussNoise(noise_intensity=1):
     noise = np.random.normal(0, noise_intensity, size=noise_size)
     noise = np.clip(noise, -3*noise_intensity, 3*noise_intensity)    
-    noise = (noise - noise.min()) / (noise.max() - noise.min())*2-1
+    noise = (noise - noise.min()) / (noise.max() - noise.min())*2-1 # normalize the noise
     return noise
 
 # Blob properties
 blob_width=11 # in arcmins
-initial_blob_std= arcmin_to_px(arcmin=11,h=13,d=45,r=1024) 
+initial_blob_std= arcmin_to_px(arcmin=11,h=screen_height,d=screen_distance,r=field_size[0]) 
 # blob properties conversion
 #blob_std = space_constant / (2 * np.sqrt(2 * np.log(2))) # Convert arcmin to std for Gaussian
-blob_std=arcmin_to_px(arcmin=blob_width,h=13,d=45,r=1024)
+blob_std=arcmin_to_px(arcmin=blob_width,h=screen_height,d=screen_distance,r=field_size[0])
 total_lum=1*(2*np.pi*initial_blob_std ** 2)*1 # Total luminance of blobm
 blob_amplitude =total_lum / (2*np.pi*blob_std ** 2) # Adjust blob amplitude to keep total blob energy constant
 
@@ -79,14 +89,14 @@ def generateBrownianMotion(field_size, velocity_std, duration):
     pos_x = np.cumsum(velocies_x)
     pos_y = np.cumsum(velocies_y)
     # clip positions to stay within the field
-    pos_x = np.clip(pos_x, 0, field_size )
-    pos_y = np.clip(pos_y, 0, field_size )
+    pos_x = np.clip(pos_x, -field_size[0]/2, field_size[0]/2 )
+    pos_y = np.clip(pos_y, -field_size[0]/2, field_size[0]/2 )
     return (pos_x, pos_y)
 
 print(frameRate)
 
 """ Pregenerate noise and blob instances for each frame """
-duration=20 # in seconds
+duration=10 # in seconds
 noise_instances=[]
 noise_instances.append(gaussNoise())# first noise
 blob=generateBlob(blob_width)    # Create Gaussian blob
@@ -102,7 +112,9 @@ for i in range(int(duration*frameRate)+10): #assuming program can achieve the ac
     blob_rolleds.append(np.roll(blob, (int(pos_x[(i)]), int(pos_y[(i)])), axis=(1, 0))) # Shift blob according to the brownian motion
 
     stim_array=blob_rolleds[i]+noise_instances[i]
-    #stim_array = (stim_array - stim_array.min()) / (stim_array.max() - stim_array.min())*2-1 # normalize the stim array
+    #clip the stim array to stay within the range of 3*noise_intensity
+    stim_array = np.clip(stim_array, -3*noise_std, 3*noise_std)
+    stim_array = (stim_array - stim_array.min()) / (stim_array.max() - stim_array.min())*2-1 # normalize the stim array
     final_stim = visual.PatchStim(win, tex=stim_array, size=noise_size, interpolate=False,units='pix')
     final_stims.append(final_stim)
     final_stims[-1].draw()  # first draw is slower. So do it now.
@@ -120,23 +132,33 @@ while continueRoutine:
     t = routineTimer.getTime()
     tThisFlip = win.getFutureFlipTime(clock=routineTimer)
     tThisFlipGlobal = win.getFutureFlipTime(clock=None)
-    frameN = frameN + 1  # number of completed frames (so 0 is the first frame)
-
+    frameN+= 1  # number of completed frames (so 0 is the first frame)
 
     # show frame number on top right corner
-    #frame_text = visual.TextStim(win, text="Frame: "+str(frameN), pos=(win.size[0]/2-150,win.size[1]/2-100 ), color=[1,0,0], height=50, alignHoriz='center', alignVert='center', units='pix')
+    #frame_text = visual.TextStim(win, text="Frame: "+str(frameN), pos=(field_size[0]/2-150,field_size[1]/2-100 ), color=[1,0,0], height=50, alignHoriz='center', alignVert='center', units='pix')
     #frame_text.draw()
 
-    # draw the stim
+    # draw the stimulus
     final_stims[frameN].draw()
     print(frameN)
-    print("time="+str(t))
+    #print("time="+str(t))
 
     # flip the window
-    win.flip()
+    win.flip(clearBuffer=True)
 
 
-    # # save the intensity profile for each frame
+
+
+    # end the loop after given seconds
+    if t > duration:
+        continueRoutine = False
+    # check for quit (typically the Esc key)
+    if endExpNow or defaultKeyboard.getKeys(keyList=["escape"]):
+        core.quit()
+    
+    
+    # save the intensity profile for each frame
+    # stim_array = np.array(final_stims[frameN].tex)
     # intensity_profile = stim_array[noise_size[1]//2,:]
     # morm_intensity_profile = stim_array[noise_size[1]//2,:]
     # # normalize the intensity profile
@@ -150,21 +172,30 @@ while continueRoutine:
     # plt.ylabel("Intensity")
     # plt.title("Cross-Sections of Intensity"+ "  Frame: " + str(frameN))
     # plt.ylim(0, 1)
-    # #plt.pause(0.0001)
+    # plt.pause(0.0001)
     # if frameN == 0:
     #     plt.savefig('recorded/intensity_profile_'+str(blob_width)+'.png')
     # plt.clf()
-
-    # end the loop after given seconds
-    if t > duration:
-        continueRoutine = False
-    # check for quit (typically the Esc key)
-    if endExpNow or defaultKeyboard.getKeys(keyList=["escape"]):
-        core.quit()
-    
 # Close the window
 event.waitKeys()
 win.close()
+
+# save intensity profiles based on final_stims array
+intensity_profiles = []  # List to store intensity profiles
+for frame in final_stims:
+    stim_array = np.array(frame.tex)
+    intensity_profile = stim_array[noise_size[1]//2,:]
+    intensity_profiles.append(intensity_profile)
+# plot the intensity profile for each frame
+plt.plot(intensity_profiles[-1])
+plt.xlabel("Horizontal Position (pixels)")
+plt.ylabel("Intensity")
+plt.title("Cross-Sections of Intensity"+ "  Frame: " + str(frameN))
+plt.ylim(0, 1)
+plt.show()
+# if frameN == 0:
+#     plt.savefig('recorded/intensity_profile_'+str(blob_width)+'.png')
+# plt.clf()
 
 
 
