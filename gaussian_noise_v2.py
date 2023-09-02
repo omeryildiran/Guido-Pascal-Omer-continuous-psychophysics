@@ -89,8 +89,8 @@ def generateBrownianMotion(field_size, velocity_std, duration):
     pos_x = np.cumsum(velocies_x)
     pos_y = np.cumsum(velocies_y)
     # clip positions to stay within the field
-    pos_x = np.clip(pos_x, -field_size[0]/2, field_size[0]/2 )
-    pos_y = np.clip(pos_y, -field_size[0]/2, field_size[0]/2 )
+    pos_x = np.clip(pos_x, -field_size/2, field_size/2 )
+    pos_y = np.clip(pos_y, -field_size/2, field_size/2 )
     return (pos_x, pos_y)
 
 print(frameRate)
@@ -135,7 +135,7 @@ while continueRoutine:
     frameN+= 1  # number of completed frames (so 0 is the first frame)
 
     # show frame number on top right corner
-    #frame_text = visual.TextStim(win, text="Frame: "+str(frameN), pos=(field_size[0]/2-150,field_size[1]/2-100 ), color=[1,0,0], height=50, alignHoriz='center', alignVert='center', units='pix')
+    #frame_text = visual.TextStim(win, text="Frame: "+str(frameN), pos=(field_size[0]/2-150,field_size[1]/2-100 ), color=[1,1,1], height=50, alignHoriz='center', alignVert='center', units='pix')
     #frame_text.draw()
 
     # draw the stimulus
