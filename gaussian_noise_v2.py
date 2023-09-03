@@ -186,49 +186,69 @@ for frame in final_stims:
     stim_array = np.array(frame.tex)
     intensity_profile = stim_array[noise_size[1]//2,:]
     intensity_profiles.append(intensity_profile)
-# plot the intensity profile for each frame
-plt.plot(intensity_profiles[-1])
-plt.xlabel("Horizontal Position (pixels)")
-plt.ylabel("Intensity")
-plt.title("Cross-Sections of Intensity"+ "  Frame: " + str(frameN))
-plt.ylim(0, 1)
-plt.show()
-# if frameN == 0:
-#     plt.savefig('recorded/intensity_profile_'+str(blob_width)+'.png')
-# plt.clf()
+# function to plot the intensity profile for each frame
+def plot_intensity_profile(intensity_profiles, frameN):
+    plt.figure()
+    plt.plot(intensity_profiles)
+    plt.xlabel("Horizontal Position (pixels)")
+    plt.ylabel("Intensity")
+    plt.title("Cross-Sections of Intensity"+ "  Frame: " + str(frameN))
+    plt.ylim(0, 1)
+    plt.show()
+
+# plot intensity profile for each frame
+def each_frame_intensities(blob_width, intensity_profiles, plot_intensity_profile):
+    for frameN in range(len(intensity_profiles)):
+        plot_intensity_profile(intensity_profiles[frameN], frameN)
+        plt.pause(0.0001)
+        if frameN == 0:
+            plt.savefig('recorded/intensity_profile_'+str(blob_width)+'.png')
+        plt.clf()
+
+# each_frame_intensities(blob_width, intensity_profiles, plot_intensity_profile)
 
 
 
 # Plot intensity profiles
-plt.figure(figsize=(8, 6))
+def intensities_normalized(noise_size, blob_width, intensity_profiles):
+    plt.figure(figsize=(8, 6))
 
-for profile in intensity_profiles:
-    normalized_profile = (profile - profile.min()) / (profile.max() - profile.min())
-    plt.plot(normalized_profile)
+    for profile in intensity_profiles:
+        normalized_profile = (profile - profile.min()) / (profile.max() - profile.min())
+        plt.plot(normalized_profile)
 # x label in degrees of visual angle
-plt.xticks(np.arange(0, noise_size[0], 100), np.arange(-5, 6, 1))
-plt.xlabel("Horizontal Position (degrees)")
-plt.ylabel("Normalized Intensity")
-plt.title("Cross-Sections of Normalized Intensity")
-plt.ylim(0, 1)
+    plt.xticks(np.arange(0, noise_size[0], 100), np.arange(-5, 6, 1))
+    plt.xlabel("Horizontal Position (degrees)")
+    plt.ylabel("Normalized Intensity")
+    plt.title("Cross-Sections of Normalized Intensity")
+    plt.ylim(0, 1)
 # legend for each frame
-plt.legend(np.arange(len(intensity_profiles)))
-plt.savefig('recorded/intensity_profiles_'+str(blob_width)+'.png')
-plt.show()
+    plt.legend(np.arange(len(intensity_profiles)))
+    plt.savefig('recorded/intensity_profiles_'+str(blob_width)+'.png')
+    plt.show()
+
+# intensities_normalized(noise_size, blob_width, intensity_profiles)
 
 # plot intensity profiles mean
-plt.figure(figsize=(8, 6))
-mean_profile = np.mean(intensity_profiles, axis=0)
-normalized_mean_profile = (mean_profile - mean_profile.min()) / (mean_profile.max() - mean_profile.min())
-plt.plot(mean_profile)
-# x label in degrees of visual angle
-plt.xticks(np.arange(0, noise_size[0], 100), np.arange(-5, 6, 1))
-plt.xlabel("Horizontal Position (degrees)")
-plt.ylabel("Intensity")
-plt.title("Mean of Intensity")
-plt.ylim(0, 1)
-plt.savefig('recorded/mean_intensity_profile_'+str(blob_width)+'.png')
-plt.show()
+def mean_profile(intensity_profiles):
+    mean_profile = np.mean(intensity_profiles, axis=0)
+    normalized_mean_profile = (mean_profile - mean_profile.min()) / (mean_profile.max() - mean_profile.min())
+    return normalized_mean_profile
+
+# function to plot intensity profiles
+def plot_intensity_profiles(intensity_profiles):
+    normalized_mean_profile = mean_profile(intensity_profiles)
+    plt.figure(figsize=(8, 6))
+    # x label in degrees of visual angle
+    plt.xticks(np.arange(0, noise_size[0], 100), np.arange(-5, 6, 1))
+    plt.xlabel("Horizontal Position (degrees)")
+    plt.ylabel("Normalized Intensity")
+    plt.title("Cross-Sections of Normalized Intensity")
+    plt.ylim(0, 1)
+    # legend for each frame
+    plt.legend(np.arange(len(intensity_profiles)))
+    plt.savefig('recorded/intensity_profiles_'+str(blob_width)+'.png')
+    plt.show()
 
 # save intensity profiles as csv
 np.savetxt("recorded/intensity_profiles.csv", intensity_profiles, delimiter=",")
