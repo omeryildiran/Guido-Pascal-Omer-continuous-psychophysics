@@ -9,8 +9,16 @@ from dva_to_pix import arcmin_to_px
 from numpy.random import choice as randchoice
 from numpy.random import random, randint, normal, shuffle, choice as randchoice
 from psychopy import sound, gui, visual, core, data, event, logging, clock, colors, layout
+from psychopy.constants import (NOT_STARTED, STARTED, PLAYING, PAUSED,
+                                STOPPED, FINISHED, PRESSED, RELEASED, FOREVER)
 from psychopy.tools import monitorunittools
+import sys  # to get file system encoding
 
+from create_conditions import condition_creater
+from psychopy import prefs
+prefs.hardware['audioLib'] = ['PTB']
+
+conditions= condition_creater()
 # Create PsychoPy window covering the whole screen
 win = visual.Window(size=(512, 512), fullscr=False, monitor='testMonitor', units='pix', color=[0, 0, 0], useFBO=True)
 field_size=(512,512)
@@ -32,7 +40,7 @@ mouse = event.Mouse(win=win,visible=False)
 
 # Store info about the experiment session
 psychopyVersion = '2022.2.4'
-expName = 'expectation_shapes_perceived_time'  # from the Builder filename that created this script
+expName = 'continous_psych'  # from the Builder filename that created this script
 expInfo = {
     'participant': f"{randint(0, 999999):06.0f}",
     'session': '001',
@@ -42,6 +50,7 @@ expInfo['expName'] = expName
 expInfo['psychopyVersion'] = psychopyVersion
 
 frameRate=win.getActualFrameRate()
+print(frameRate)
 expInfo['frameRate']=frameRate
 if expInfo['frameRate'] != None:
     frameDur = 1.0 / round(expInfo['frameRate'])
@@ -49,6 +58,23 @@ else:
     frameDur = 1.0 / 60.0  # could not measure, so guess
 defaultKeyboard = keyboard.Keyboard(backend='iohub')
 endExpNow = False  # flag for 'escape' or other condition => quit the exp
+
+# Ensure that relative paths start from the same directory as this script
+_thisDir = os.path.dirname(os.path.abspath(__file__))
+os.chdir(_thisDir)
+# Data file name stem = absolute path + name; later add .psyexp, .csv, .log, etc
+filename = _thisDir + os.sep + u'data/%s_%s_%s' % (expInfo['participant'], expName, expInfo['date'])
+
+# An ExperimentHandler isn't essential but helps with data saving
+thisExp = data.ExperimentHandler(name=expName, version='',
+    extraInfo=expInfo, runtimeInfo=None,
+    originPath="G:\\My Drive\MyReposDrive\repo_cont_psychophysics_ofy\gaussian_noise_v2.py",
+    savePickle=True, saveWideText=True,
+    dataFileName=filename)
+logging.console.setLevel(logging.WARNING)  # this outputs to the screen, not a file
+
+endExpNow = False  # flag for 'escape' or other condition => quit the exp
+frameTolerance = 0.001  # how close to onset before 'same' frame
 
 
 # Noise properties
@@ -71,7 +97,7 @@ def gaussNoise(noise_intensity=1):
     return noise
 
 # Blob properties
-blob_width=20 # in arcmins
+blob_width=17 # in arcmins
 initial_blob_std= arcmin_to_px(arcmin=11,h=screen_height,d=screen_distance,r=field_size[0]) 
 # blob properties conversion
 #blob_std = space_constant / (2 * np.sqrt(2 * np.log(2))) # Convert arcmin to std for Gaussian
@@ -99,20 +125,20 @@ def generateBrownianMotion(field_size, velocity_std, duration):
     pos_y = np.clip(pos_y, -field_size/2, field_size/2 )
     return (pos_x, pos_y)
 
-print(frameRate)
-
 """ Pregenerate noise and blob instances for each frame """
-duration=10 # in seconds
+expectedFrameRate=60
+expectedDuration=5 # in seconds
+expectedFrames=expectedFrameRate*expectedDuration
 noise_instances=[]
 noise_instances.append(gaussNoise())# first noise
 blob=generateBlob(blob_width)    # Create Gaussian blob
-pos_x, pos_y = generateBrownianMotion(field_size=noise_size[0], velocity_std=1, duration=duration)# pre-generate brownian motion
+pos_x, pos_y = generateBrownianMotion(field_size=noise_size[0], velocity_std=1, duration=expectedDuration)# pre-generate brownian motion
 blob_rolleds=[]
 blob_rolleds.append(blob) # first blob instance
 
 ## create visual patches for each frame
 final_stims=[]
-for i in range(int(duration*frameRate)+10): #assuming program can achieve the actual frame rate of screen
+for i in range(int(expectedDuration*frameRate)+10): #assuming program can achieve the actual frame rate of screen
     noise_instances.append(gaussNoise())# pre-generate noise
 
     blob_rolleds.append(np.roll(blob, (int(pos_x[(i)]), int(pos_y[(i)])), axis=(1, 0))) # Shift blob according to the brownian motion
@@ -144,6 +170,20 @@ mouse.clicked_position = []
 mouse.setPos(newPos=(0,0))
 
 
+# Initialize components for Routine "Trial"
+expBlock = 'conditions.csv'
+## ---- Prepare to start routine Trial ---
+trialss = data.TrialHandler(nReps=1, method='random', 
+    extraInfo=expInfo, originPath=-1,
+    trialList=data.importConditions(expBlock),
+    seed=None, name='trialss')
+thisExp.addLoop(trialss)  # add the loop to the experiment
+thisTrials = trialss.trialList[0]  # so we can initialise stimuli with some values
+# abbreviate parameter names if possible (e.g. rgb = thisTrials.rgb)
+if thisTrials != None:
+    for paramName in thisTrials:
+        exec('{} = thisTrials[paramName]'.format(paramName))
+        
 ##################### Loop Start #####################
 intensity_profiles = []  # List to store intensity profiles
 continueRoutine = True
@@ -152,9 +192,9 @@ frameN = -1
 win.clearBuffer()
 routineTimer.reset()
 t = 0
-
 # mouse position and visibility
 win.setMouseVisible(False)
+
 while continueRoutine:
     t = routineTimer.getTime()
     tThisFlip = win.getFutureFlipTime(clock=routineTimer)
@@ -167,12 +207,16 @@ while continueRoutine:
     obs_pointer.setPos(mouse.getPos())
     final_stims[frameN].draw()
     print(pos_x[frameN], pos_y[frameN])
+    #save mouse position
+    mouse.x.append(mouse.getPos()[0])
+    mouse.y.append(mouse.getPos()[1])
+
     print(frameN)
     #print("time="+str(t))
     # flip the window
     win.flip(clearBuffer=True)
     # end the loop after given seconds
-    if t > duration:
+    if frameN > expectedFrames-1:
         continueRoutine = False
     # check for quit (typically the Esc key)
     if endExpNow or defaultKeyboard.getKeys(keyList=["escape"]):
@@ -202,6 +246,12 @@ event.waitKeys()
 win.close()
 
 
+
+
+
+
+
+
 ################################# Plotting #############################################################################
 
 # save intensity profiles based on final_stims array
@@ -229,7 +279,7 @@ def each_frame_intensities(blob_width, intensity_profiles, plot_intensity_profil
         if frameN == 0:
             plt.savefig('recorded/intensity_profile_'+str(blob_width)+'.png')
 
-each_frame_intensities(blob_width, intensity_profiles[0:10], plot_intensity_profile)
+#each_frame_intensities(blob_width, intensity_profiles[0:10], plot_intensity_profile)
 
 
 
