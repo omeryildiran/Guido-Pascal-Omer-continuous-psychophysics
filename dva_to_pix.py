@@ -1,4 +1,5 @@
 from math import atan2, degrees
+from psychopy.tools import monitorunittools
 #### Arguments
 # h = 19           # Monitor height in cm
 # d = 57           # Distance between monitor and participant in cm
