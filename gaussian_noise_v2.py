@@ -115,7 +115,7 @@ def generateBrownianMotion(field_size, velocity_std, duration):
 
 
 # pre-generate noises
-noise_instances=[]
+noise_instances=np.empty((int(expectedFrames*expectedDuration)+5,noise_size[0],noise_size[1]))
 for i in range((expectedFrames*expectedDuration)+5):
     noise_instances.append(gaussNoise())
 
