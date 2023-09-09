@@ -64,29 +64,18 @@ os.chdir(_thisDir)
 # Data file name stem = absolute path + name; later add .psyexp, .csv, .log, etc
 filename = _thisDir + os.sep + u'data/%s_%s_%s' % (expInfo['participant'], expName, expInfo['date'])
 
-# An ExperimentHandler isn't essential but helps with data saving
-thisExp = data.ExperimentHandler(name=expName, version='',
-    extraInfo=expInfo, runtimeInfo=None,
-    originPath="G:\\My Drive\MyReposDrive\repo_cont_psychophysics_ofy\gaussian_noise_v2.py",
-    savePickle=True, saveWideText=True,
-    dataFileName=filename)
-logging.console.setLevel(logging.WARNING)  # this outputs to the screen, not a file
 
 endExpNow = False  # flag for 'escape' or other condition => quit the exp
 frameTolerance = 0.001  # how close to onset before 'same' frame
-
-
 # Noise properties
 noise_size = field_size  # Use the window size for noise texture
 noise_arcmin = 11  # Standard deviation for pixel noise || noise intensity Adjust to control noise intensity
 noise_std =arcmin_to_px(noise_arcmin,h=screen_height,d=screen_distance,r=field_size[0])# convert arcmin to std for Gaussian
-
 # Brownian motion properties
 velocity_std = 1.0  # Standard deviation of Gaussian white noise velocities
 # Create some handy timers
 globalClock = core.Clock()  # to track the time since experiment started
 routineTimer = core.Clock()  # to track time remaining of each (possibly non-slip) routine 
-
 # Background noise
 def gaussNoise(noise_intensity=1):
     noise = np.random.normal(0, noise_intensity, size=noise_size)
@@ -96,10 +85,6 @@ def gaussNoise(noise_intensity=1):
 
 # Blob properties
 initial_blob_std= arcmin_to_px(arcmin=11,h=screen_height,d=screen_distance,r=field_size[0]) 
-# blob properties conversion
-#blob_std = space_constant / (2 * np.sqrt(2 * np.log(2))) # Convert arcmin to std for Gaussian
-
-# Blob generator
 def generateBlob(space_constant):
     blob_std=arcmin_to_px(arcmin=blob_width,h=screen_height,d=screen_distance,r=field_size[0])
     total_lum=1*(2*np.pi*initial_blob_std ** 2)*1 # Total luminance of blobm
@@ -108,10 +93,15 @@ def generateBlob(space_constant):
     blob = blob_amplitude * np.exp(-((x - noise_size[0] / 2)**2 + (y - noise_size[1] / 2)**2) / (2 * blob_std**2))
     return blob
 
+""" Pregenerate noise and blob instances for each frame """
+expectedFrameRate=60
+expectedDuration=5 # in seconds
+expectedFrames=expectedFrameRate*expectedDuration
+
 # Blob motion by changing velocity on x and y axis according to the brownian motion
 def generateBrownianMotion(field_size, velocity_std, duration):
     # Generate random velocity for each frame
-    num_frames = int(duration * frameRate)+5
+    num_frames = int(duration * expectedFrameRate)+5
     velocies_x=np.random.normal(0, velocity_std, num_frames)
     velocies_y=np.random.normal(0, velocity_std, num_frames)
     # new positions = old position + velocity
@@ -122,61 +112,46 @@ def generateBrownianMotion(field_size, velocity_std, duration):
     pos_y = np.clip(pos_y, -field_size/2, field_size/2 )
     return (pos_x, pos_y)
 
-""" Pregenerate noise and blob instances for each frame """
-expectedFrameRate=60
-expectedDuration=20 # in seconds
-expectedFrames=expectedFrameRate*expectedDuration
 
+
+# pre-generate noises
+noise_instances=np.empty((int(expectedFrameRate*expectedDuration)+5,noise_size[0],noise_size[1]))
+for i in range((expectedFrameRate*expectedDuration)+5):
+    noise_instances[i]=gaussNoise()
 # ## create visual patches for each frame
 def full_stimuli(blob_width,expectedDuration,frameRate):
     """ Pregenerate noise and blob instances for each frame """
     noise= gaussNoise()# first noise
     blob=generateBlob(blob_width)    # Create Gaussian blob
     pos_x, pos_y = generateBrownianMotion(field_size=noise_size[0], velocity_std=1, duration=expectedDuration)# pre-generate brownian motion
-
     stim_array=blob+noise
     final_stims=[]
-    final_stim = visual.PatchStim(win, tex=stim_array, size=noise_size, interpolate=False,units='pix')
+    final_stim = visual.GratingStim(win, tex=stim_array, size=noise_size, interpolate=False,units='pix')
     final_stims.append(final_stim)
     final_stims[-1].draw()  # first draw is slower. So do it now.
-    for i in range(int(expectedDuration*frameRate)+5): #assuming program can achieve the actual frame rate of screen
-        #noise_instances.append(gaussNoise())# pre-generate noise
-        noise=gaussNoise()
-        #blob_rolleds.append(np.roll(blob, (int(pos_x[(i)]), int(pos_y[(i)])), axis=(1, 0))) # Shift blob according to the brownian motion
-        blob_moved=np.roll(blob, (int(pos_x[(i)]), int(pos_y[(i)])), axis=(1, 0))
-        #stim_array=blob_rolleds[i]+noise_instances[i]
+    for i in range(int(expectedDuration*expectedFrameRate)+5): #assuming program can achieve the actual frame rate of screen
+        #noise_instances.append(gaussNoise())# pre-generated noise
+        noise=noise_instances[i]
+        blob_moved=np.roll(blob, (int(pos_x[(i)]), int(pos_y[(i)])), axis=(1, 0)) # Shift blob according to the brownian motion
         stim_array=blob_moved+noise
         #clip the stim array to stay within the range of 3*noise_intensity
         stim_array = np.clip(stim_array, -3*noise_std, 3*noise_std)
         stim_array = (stim_array - stim_array.min()) / (stim_array.max() - stim_array.min())*2-1 # normalize the stim array
-        final_stim = visual.PatchStim(win, tex=stim_array, size=noise_size, interpolate=False,units='pix')
+        final_stim = visual.GratingStim(win, tex=stim_array, size=noise_size, interpolate=False,units='pix')
         final_stims.append(final_stim)
         final_stims[-1].draw()  # first draw is slower. So do it now.
     return final_stims, pos_x, pos_y
 
-
 # Observation pointer for participant tracking of blob
 #circle showing mouse position
-obs_pointer = visual.Circle(win, radius=10, fillColor=[1, 0, 0], units='pix',size=0.2)
-
+obs_pointer = visual.Circle(win, radius=10, fillColor=[1, 0, 0], units='pix',size=0.35)
 #Mouse properties
 mouse.mouseClock = core.Clock()
 mouse.x = []
 mouse.y = []
 
-# Initialize components for Routine "Trial"
-expBlock = 'conditions.csv'
-## ---- Prepare to start routine Trial ---
-trialss = data.TrialHandler(nReps=1, method='random', 
-    extraInfo=expInfo, originPath=-1,
-    trialList=data.importConditions(expBlock),
-    seed=None, name='trialss')
-thisExp.addLoop(trialss)  # add the loop to the experiment
-thisTrials = trialss.trialList[0]  # so we can initialise stimuli with some values
-# abbreviate parameter names if possible (e.g. rgb = thisTrials.rgb)
-if thisTrials != None:
-    for paramName in thisTrials:
-        exec('{} = thisTrials[paramName]'.format(paramName))
+
+##################### Trials Start Here #####################
 
 win.setMouseVisible(False)        
 for blob_width in conditions:
@@ -187,11 +162,12 @@ for blob_width in conditions:
     win.flip(clearBuffer=True)
     # set a timer for the next line record the time spent
     tStart = globalClock.getTime()
-    final_stims, pos_x, pos_y=full_stimuli(blob_width,expectedDuration,frameRate)
+
+    final_stims, pos_x, pos_y=full_stimuli(blob_width,expectedDuration,expectedFrameRate)
+
     tEnd = globalClock.getTime()
     win.clearBuffer()
     # update component parameters for each repeat
-    ##################### Loop Start #####################
     # Initialize components for Routine "Trial"
     intensity_profiles = []  # List to store intensity profiles
     continueRoutine = True
@@ -211,11 +187,10 @@ for blob_width in conditions:
         # draw the stimulus
         obs_pointer.setPos(mouse.getPos())
         final_stims[frameN].draw()
-        print(pos_x[frameN], pos_y[frameN])
+        #print(pos_x[frameN], pos_y[frameN])
         #save mouse position
         mouse.x.append(mouse.getPos()[0])
         mouse.y.append(mouse.getPos()[1])
-
         #print(frameN)
         #print("time="+str(t))
         # flip the window
