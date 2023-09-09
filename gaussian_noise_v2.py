@@ -95,7 +95,7 @@ def generateBlob(space_constant):
 
 """ Pregenerate noise and blob instances for each frame """
 expectedFrameRate=60
-expectedDuration=5 # in seconds
+expectedDuration=20 # in seconds
 expectedFrames=expectedFrameRate*expectedDuration
 
 # Blob motion by changing velocity on x and y axis according to the brownian motion
@@ -112,6 +112,12 @@ def generateBrownianMotion(field_size, velocity_std, duration):
     pos_y = np.clip(pos_y, -field_size/2, field_size/2 )
     return (pos_x, pos_y)
 
+
+
+# pre-generate noises
+noise_instances=[]
+for i in range((expectedFrames*expectedDuration)+5):
+    noise_instances.append(gaussNoise())
 
 
 # pre-generate noises
