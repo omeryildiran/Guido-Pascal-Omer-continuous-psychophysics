@@ -95,7 +95,7 @@ def generateBlob(space_constant):
 
 """ Pregenerate noise and blob instances for each frame """
 expectedFrameRate=60
-expectedDuration=20 # in seconds
+expectedDuration=5 # in seconds
 expectedFrames=expectedFrameRate*expectedDuration
 
 # Blob motion by changing velocity on x and y axis according to the brownian motion
