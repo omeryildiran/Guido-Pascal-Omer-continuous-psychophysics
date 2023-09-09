@@ -76,6 +76,9 @@ velocity_std = 1.0  # Standard deviation of Gaussian white noise velocities
 # Create some handy timers
 globalClock = core.Clock()  # to track the time since experiment started
 routineTimer = core.Clock()  # to track time remaining of each (possibly non-slip) routine 
+
+
+########################################################################################################################
 # Background noise
 def gaussNoise(noise_intensity=1):
     noise = np.random.normal(0, noise_intensity, size=noise_size)
@@ -85,9 +88,9 @@ def gaussNoise(noise_intensity=1):
 
 # Blob properties
 initial_blob_std= arcmin_to_px(arcmin=11,h=screen_height,d=screen_distance,r=field_size[0]) 
+total_lum=1*(2*np.pi*initial_blob_std ** 2)*1 # Total luminance of blobm
 def generateBlob(space_constant):
-    blob_std=arcmin_to_px(arcmin=blob_width,h=screen_height,d=screen_distance,r=field_size[0])
-    total_lum=1*(2*np.pi*initial_blob_std ** 2)*1 # Total luminance of blobm
+    #blob_std=arcmin_to_px(arcmin=blob_width,h=screen_height,d=screen_distance,r=field_size[0])
     blob_amplitude =total_lum / (2*np.pi*blob_std ** 2) # Adjust blob amplitude to keep total blob energy constant
     y, x = np.meshgrid(np.arange(noise_size[1]), np.arange(noise_size[0]))
     blob = blob_amplitude * np.exp(-((x - noise_size[0] / 2)**2 + (y - noise_size[1] / 2)**2) / (2 * blob_std**2))
@@ -95,7 +98,7 @@ def generateBlob(space_constant):
 
 """ Pregenerate noise and blob instances for each frame """
 expectedFrameRate=60
-expectedDuration=5 # in seconds
+expectedDuration=20 # in seconds
 expectedFrames=expectedFrameRate*expectedDuration
 
 # Blob motion by changing velocity on x and y axis according to the brownian motion
@@ -127,19 +130,30 @@ def full_stimuli(blob_width,expectedDuration,frameRate):
     final_stim = visual.GratingStim(win, tex=stim_array, size=noise_size, interpolate=False,units='pix')
     final_stims.append(final_stim)
     final_stims[-1].draw()  # first draw is slower. So do it now.
-    for i in range(int(expectedDuration*expectedFrameRate)+5): #assuming program can achieve the actual frame rate of screen
+    for i in range(600):#int(expectedDuration*frameRate)+5): #assuming program can achieve the actual frame rate of screen
         #noise_instances.append(gaussNoise())# pre-generated noise
         noise=noise_instances[i]
         blob_moved=np.roll(blob, (int(pos_x[(i)]), int(pos_y[(i)])), axis=(1, 0)) # Shift blob according to the brownian motion
-        stim_array=blob_moved+noise
-        #clip the stim array to stay within the range of 3*noise_intensity
-        stim_array = np.clip(stim_array, -3*noise_std, 3*noise_std)
-        stim_array = (stim_array - stim_array.min()) / (stim_array.max() - stim_array.min())*2-1 # normalize the stim array
+        stim_array=blob_moved+noise # Combine noise with the blob
+        #stim_array = np.clip(stim_array, -3*noise_std, 3*noise_std)        #clip the stim array to stay within the range of 3*noise_intensity
+        #stim_array = (stim_array - stim_array.min()) / (stim_array.max() - stim_array.min())*2-1 # normalize the stim array
         final_stim = visual.GratingStim(win, tex=stim_array, size=noise_size, interpolate=False,units='pix')
         final_stims.append(final_stim)
         final_stims[-1].draw()  # first draw is slower. So do it now.
-    return final_stims, pos_x, pos_y
+    return final_stims, pos_x, pos_y,blob
 
+def full_stim_for_single_frame(frameOrder,pos_x,pos_y,blob):
+    noise= noise_instances[frameOrder]# 
+    blob_moved=np.roll(blob, (int(pos_x[(frameOrder)]), int(pos_y[(frameOrder)])), axis=(1, 0)) # Shift blob according to the brownian motion
+    stim_array=blob_moved+noise # Combine noise with the blob
+    #stim_array = np.clip(stim_array, -3*noise_std, 3*noise_std)        #clip the stim array to stay within the range of 3*noise_intensity
+    #stim_array = (stim_array - stim_array.min()) / (stim_array.max() - stim_array.min())*2-1 # normalize the stim array
+    final_stim = visual.GratingStim(win, tex=stim_array, size=noise_size, interpolate=False,units='pix')
+    #final_stim.draw()  # first draw is slower. So do it now.
+    return final_stim
+
+
+    
 # Observation pointer for participant tracking of blob
 #circle showing mouse position
 obs_pointer = visual.Circle(win, radius=10, fillColor=[1, 0, 0], units='pix',size=0.35)
@@ -155,13 +169,14 @@ win.setMouseVisible(False)
 for blob_width in conditions:
     # clear all drawings
     print(blob_width)
+    blob_std=arcmin_to_px(arcmin=blob_width,h=screen_height,d=screen_distance,r=field_size[0])
     obs_pointer.setAutoDraw(False)
     mouse.setPos(newPos=(0,0))
     win.flip(clearBuffer=True)
     # set a timer for the next line record the time spent
     tStart = globalClock.getTime()
 
-    final_stims, pos_x, pos_y=full_stimuli(blob_width,expectedDuration,expectedFrameRate)
+    final_stims_obj, pos_x_obj, pos_y_obj, blob_obj=full_stimuli(blob_std,expectedDuration,expectedFrameRate)
 
     tEnd = globalClock.getTime()
     win.clearBuffer()
@@ -184,8 +199,8 @@ for blob_width in conditions:
         frameN+= 1  # number of completed frames (so 0 is the first frame)
         # draw the stimulus
         obs_pointer.setPos(mouse.getPos())
-        final_stims[frameN].draw()
-        #print(pos_x[frameN], pos_y[frameN])
+        final_stims_obj[frameN].draw()
+        #print(pos_x_ob[frameN], pos_y_obj[frameN])
         #save mouse position
         mouse.x.append(mouse.getPos()[0])
         mouse.y.append(mouse.getPos()[1])
@@ -199,8 +214,12 @@ for blob_width in conditions:
         # check for quit (typically the Esc key)
         if endExpNow or defaultKeyboard.getKeys(keyList=["escape"]):
             core.quit()
+        if frameN < expectedFrames-600:
+            final_stims_obj.append(full_stim_for_single_frame(frameN+600,pos_x_obj,pos_y_obj,blob_obj))
+            #win.clearBuffer()
     print(tEnd-tStart)
-
+    t = routineTimer.getTime()
+    print(t)
 # Close the window
 event.waitKeys()
 win.close()
