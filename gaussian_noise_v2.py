@@ -112,14 +112,6 @@ def generateBrownianMotion(field_size, velocity_std, duration):
     pos_y = np.clip(pos_y, -field_size/2, field_size/2 )
     return (pos_x, pos_y)
 
-
-
-# pre-generate noises
-noise_instances=np.empty((int(expectedFrames*expectedDuration)+5,noise_size[0],noise_size[1]))
-for i in range((expectedFrames*expectedDuration)+5):
-    noise_instances.append(gaussNoise())
-
-
 # pre-generate noises
 noise_instances=np.empty((int(expectedFrameRate*expectedDuration)+5,noise_size[0],noise_size[1]))
 for i in range((expectedFrameRate*expectedDuration)+5):
@@ -127,7 +119,7 @@ for i in range((expectedFrameRate*expectedDuration)+5):
 # ## create visual patches for each frame
 def full_stimuli(blob_width,expectedDuration,frameRate):
     """ Pregenerate noise and blob instances for each frame """
-    noise= gaussNoise()# first noise
+    noise= noise_instances[-1]# first noise
     blob=generateBlob(blob_width)    # Create Gaussian blob
     pos_x, pos_y = generateBrownianMotion(field_size=noise_size[0], velocity_std=1, duration=expectedDuration)# pre-generate brownian motion
     stim_array=blob+noise
