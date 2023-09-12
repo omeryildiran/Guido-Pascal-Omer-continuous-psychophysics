@@ -160,7 +160,7 @@ def full_stim_for_single_frame(frameOrder,pos_x,pos_y,blob):
     
 # Observation pointer for participant tracking of blob
 #circle showing mouse position
-obs_pointer = visual.Circle(win, radius=1, fillColor=[1, 0, 0], units='pix')
+obs_pointer = visual.Circle(win, radius=10, fillColor=[1, 0, 0], units='pix',size=0.35)
 #Mouse properties
 mouse.mouseClock = core.Clock()
 
