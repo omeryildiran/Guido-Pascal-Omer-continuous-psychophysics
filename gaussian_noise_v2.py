@@ -21,11 +21,11 @@ from psychopy import prefs
 conditions= condition_creater()
 # Create PsychoPy window covering the whole screen
 win = visual.Window(size=(512, 512), fullscr=False, monitor='testMonitor', units='pix', color=[0, 0, 0], useFBO=True)
-field_size=(512,512)
+field_size=(256,256)
 
 #setup screen properties
-screen_width=31
-screen_height=17.5
+screen_width=34
+screen_height=21
 screen_distance=50
 ### Set the monitor to the correct distance and size
 #win.monitor.setSizePix(field_size)
@@ -96,7 +96,11 @@ def generateBlob(space_constant):
     blob = blob_amplitude * np.exp(-((x - noise_size[0] / 2)**2 + (y - noise_size[1] / 2)**2) / (2 * blob_std**2))
     return blob
 
-""" Pregenerate noise and blob instances for each frame """
+
+###################################################################################################################
+"""                         Pregenerate noise and blob instances for each frame """
+###################################################################################################################
+magicNumber=600
 expectedFrameRate=60
 expectedDuration=20 # in seconds
 expectedFrames=expectedFrameRate*expectedDuration
@@ -125,30 +129,30 @@ def full_stimuli(blob_width,expectedDuration,frameRate):
     noise= noise_instances[-1]# first noise
     blob=generateBlob(blob_width)    # Create Gaussian blob
     pos_x, pos_y = generateBrownianMotion(field_size=noise_size[0], velocity_std=1, duration=expectedDuration)# pre-generate brownian motion
-    stim_array=blob+noise
-    final_stims=[]
-    final_stim = visual.GratingStim(win, tex=stim_array, size=noise_size, interpolate=False,units='pix')
-    final_stims.append(final_stim)
-    final_stims[-1].draw()  # first draw is slower. So do it now.
-    for i in range(600):#int(expectedDuration*frameRate)+5): #assuming program can achieve the actual frame rate of screen
+    stim_arrays=np.empty((magicNumber, noise_size[0], noise_size[0]))
+    stim_arrays[0]=blob+noise
+    rolled_blob_frames = np.empty((magicNumber, noise_size[0], noise_size[0]))
+    final_stims = [None] * ((expectedDuration*frameRate)+1)
+    final_stims[0] = visual.GratingStim(win, tex=stim_arrays[0], size=noise_size, interpolate=False,units='pix')
+    final_stims[0].draw()  # first draw is slower. So do it now.
+    for i in range(1,magicNumber):#int(expectedDuration*frameRate)+5): #assuming program can achieve the actual frame rate of screen
         #noise_instances.append(gaussNoise())# pre-generated noise
-        noise=noise_instances[i]
-        blob_moved=np.roll(blob, (int(pos_x[(i)]), int(pos_y[(i)])), axis=(1, 0)) # Shift blob according to the brownian motion
-        stim_array=blob_moved+noise # Combine noise with the blob
-        #stim_array = np.clip(stim_array, -3*noise_std, 3*noise_std)        #clip the stim array to stay within the range of 3*noise_intensity
-        #stim_array = (stim_array - stim_array.min()) / (stim_array.max() - stim_array.min())*2-1 # normalize the stim array
-        final_stim = visual.GratingStim(win, tex=stim_array, size=noise_size, interpolate=False,units='pix')
-        final_stims.append(final_stim)
-        final_stims[-1].draw()  # first draw is slower. So do it now.
-    return final_stims, pos_x, pos_y,blob
+        rolled_blob_frames[i]=np.roll(blob, (int(pos_x[(i)]), int(pos_y[(i)])), axis=(1, 0)) # Shift blob according to the brownian motion
+        stim_arrays[i]=rolled_blob_frames[i]+noise_instances[i] # Combine noise with the blob
+    #stim_arrays = np.clip(stim_arrays, -3*noise_std, 3*noise_std)        #clip the stim array to stay within the range of 3*noise_intensity
+    #stim_arrays = (stim_arrays - stim_arrays.min()) / (stim_arrays.max() - stim_arrays.min())*2-1 # normalize the stim array
+    for i in range(1,(magicNumber)):
+        final_stims[i] = visual.GratingStim(win, tex=stim_arrays[i], size=[512,512], interpolate=False,units='pix',autoLog=False)
+        # another way to optimize the creation of visual stimuli
+        final_stims[i].draw()  # first draw is slower. So do it now.
+    return final_stims, pos_x, pos_y,blob,rolled_blob_frames
 
 def full_stim_for_single_frame(frameOrder,pos_x,pos_y,blob):
-    noise= noise_instances[frameOrder]# 
     blob_moved=np.roll(blob, (int(pos_x[(frameOrder)]), int(pos_y[(frameOrder)])), axis=(1, 0)) # Shift blob according to the brownian motion
-    stim_array=blob_moved+noise # Combine noise with the blob
+    stim_array=blob_moved+noise_instances[frameOrder] # Combine noise with the blob
     #stim_array = np.clip(stim_array, -3*noise_std, 3*noise_std)        #clip the stim array to stay within the range of 3*noise_intensity
     #stim_array = (stim_array - stim_array.min()) / (stim_array.max() - stim_array.min())*2-1 # normalize the stim array
-    final_stim = visual.GratingStim(win, tex=stim_array, size=noise_size, interpolate=False,units='pix')
+    final_stim = visual.GratingStim(win, tex=stim_array, size=[512,512], interpolate=False,units='pix')
     #final_stim.draw()  # first draw is slower. So do it now.
     return final_stim
 
@@ -156,14 +160,20 @@ def full_stim_for_single_frame(frameOrder,pos_x,pos_y,blob):
     
 # Observation pointer for participant tracking of blob
 #circle showing mouse position
-obs_pointer = visual.Circle(win, radius=10, fillColor=[1, 0, 0], units='pix',size=0.35)
+obs_pointer = visual.Circle(win, radius=1, fillColor=[1, 0, 0], units='pix')
 #Mouse properties
 mouse.mouseClock = core.Clock()
-mouse.x = []
-mouse.y = []
 
 
 ##################### Trials Start Here #####################
+all_blob_x = []
+all_blob_y = []
+all_blob_v=[]
+
+
+all_mouse_x = []
+all_mouse_y = []
+all_mouse_v=[]
 
 win.setMouseVisible(False)        
 for blob_width in conditions:
@@ -175,10 +185,25 @@ for blob_width in conditions:
     win.flip(clearBuffer=True)
     # set a timer for the next line record the time spent
     tStart = globalClock.getTime()
-
-    final_stims_obj, pos_x_obj, pos_y_obj, blob_obj=full_stimuli(blob_std,expectedDuration,expectedFrameRate)
+    #mouse.x = np.zeros(expectedDuration*expectedFrameRate)
+    #mouse.y = np.zeros(expectedDuration*expectedFrameRate)
+    mouse.y=[]
+    mouse.x=[]
+    # create magicNumber frames of stimuli
+    final_stims_obj, pos_x_obj, pos_y_obj, blob_obj, rolledBlobPositions=full_stimuli(blob_std,expectedDuration,expectedFrameRate)
+    pos_x_obj=np.insert(pos_x_obj,0,0)
+    pos_y_obj=np.insert(pos_y_obj,0,0)
+    # calcuate velocity of blob
+    blob_vx = np.diff(pos_x_obj)
+    blob_vy = np.diff(pos_y_obj)
+    blob_v = np.sqrt(blob_vx**2 + blob_vy**2)
+    blob_v = np.insert(blob_v, 0, 0)
+    # save blob velocity
+    all_blob_v.append(blob_v)
 
     tEnd = globalClock.getTime()
+    print(tEnd-tStart)
+
     win.clearBuffer()
     # update component parameters for each repeat
     # Initialize components for Routine "Trial"
@@ -202,24 +227,45 @@ for blob_width in conditions:
         final_stims_obj[frameN].draw()
         #print(pos_x_ob[frameN], pos_y_obj[frameN])
         #save mouse position
-        mouse.x.append(mouse.getPos()[0])
-        mouse.y.append(mouse.getPos()[1])
+        mouse.x.append(obs_pointer.pos[0])
+        mouse.y.append(obs_pointer.pos[1])
+        #mouse.x[frameN]=obs_pointer.pos[0]
+        #mouse.y[frameN]=obs_pointer.pos[1]
         #print(frameN)
         #print("time="+str(t))
         # flip the window
-        win.flip(clearBuffer=True)
+        win.flip()
         # end the loop after given seconds
         if frameN > expectedFrames-1:
             continueRoutine = False
         # check for quit (typically the Esc key)
         if endExpNow or defaultKeyboard.getKeys(keyList=["escape"]):
             core.quit()
-        if frameN < expectedFrames-600:
-            final_stims_obj.append(full_stim_for_single_frame(frameN+600,pos_x_obj,pos_y_obj,blob_obj))
+        if frameN < expectedFrames-magicNumber+1:
+            blob_moved2nd=np.roll(blob_obj, (int(pos_x_obj[(frameN+magicNumber)]), int(pos_y_obj[(frameN+magicNumber)])), axis=(1, 0)) # Shift blob according to the brownian motion
+            stim_array2nd=blob_moved2nd+noise_instances[frameN+magicNumber] # Combine noise with the blob
+            final_stims_obj[frameN+magicNumber]=visual.GratingStim(win, tex=stim_array2nd, size=[512,512], interpolate=False,units='pix')
             #win.clearBuffer()
     print(tEnd-tStart)
+    print(frameN)
     t = routineTimer.getTime()
     print(t)
+    # save positions of target, mouse, and but first calculate velocities
+    mouse.x = np.array(mouse.x)
+    mouse.y = np.array(mouse.y)
+    mouse.v = np.sqrt(np.diff(mouse.x)**2 + np.diff(mouse.y)**2)
+    mouse.v = np.insert(mouse.v, 0, 0)
+
+    
+    all_mouse_x.append(mouse.x)
+    all_mouse_y.append(mouse.y)
+    all_mouse_v.append(mouse.v)
+    ###
+    # save target velocity
+
+
+    # save mouse positions
+
 # Close the window
 event.waitKeys()
 win.close()
