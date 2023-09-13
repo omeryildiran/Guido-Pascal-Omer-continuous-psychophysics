@@ -19,9 +19,11 @@ from psychopy import prefs
 
 #prefs.hardware['audioLib'] = ['PTB']
 conditions= condition_creater()
+# import conditions.npy
+#conditions=np.load('conditions.npy')
 # Create PsychoPy window covering the whole screen
 win = visual.Window(size=(512, 512), fullscr=False, monitor='testMonitor', units='pix', color=[0, 0, 0], useFBO=True)
-field_size=(256,256)
+field_size=(512,512)
 
 #setup screen properties
 screen_width=34
@@ -176,7 +178,7 @@ all_mouse_y = []
 all_mouse_v=[]
 
 win.setMouseVisible(False)        
-for blob_width in conditions:
+for blob_width in conditions[:2]:
     # clear all drawings
     print(blob_width)
     blob_std=arcmin_to_px(arcmin=blob_width,h=screen_height,d=screen_distance,r=field_size[0])
@@ -194,11 +196,11 @@ for blob_width in conditions:
     pos_x_obj=np.insert(pos_x_obj,0,0)
     pos_y_obj=np.insert(pos_y_obj,0,0)
     # calcuate velocity of blob
-    blob_vx = np.diff(pos_x_obj)
-    blob_vy = np.diff(pos_y_obj)
-    blob_v = np.sqrt(blob_vx**2 + blob_vy**2)
+    blob_v = np.sqrt(np.diff(pos_x_obj)**2 + np.diff(pos_y_obj)**2)
     blob_v = np.insert(blob_v, 0, 0)
     # save blob velocity
+    all_blob_x.append(pos_x_obj)
+    all_blob_y.append(pos_y_obj)
     all_blob_v.append(blob_v)
 
     tEnd = globalClock.getTime()
@@ -270,7 +272,14 @@ for blob_width in conditions:
 event.waitKeys()
 win.close()
 
+# write mouse positions, velocities, and blob velocities and positions and conditions as a matlab data file
+# save mouse positions
 
+import scipy.io as sio
+conditions=conditions.T
+sio.savemat('recorded/all.mat', {'mouse_x': all_mouse_x, 'mouse_y': all_mouse_y, 'mouse_v': all_mouse_v, 'blob_x': all_blob_x, 'blob_y': all_blob_y, 'blob_v': all_blob_v, 'blob_width': conditions})
+
+# transpoze conditions
 
 
 
