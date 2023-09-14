@@ -81,11 +81,31 @@ routineTimer = core.Clock()  # to track time remaining of each (possibly non-sli
 
 
 ########################################################################################################################
+"""                     NOISE BACKGROUND           """
 # Background noise
 def gaussNoise(noise_intensity=1):
     noise = np.random.normal(0, noise_intensity, size=noise_size)
     return noise
 
+# pre-generate noises
+noiseQuantity=120
+noise_instances=np.empty((noiseQuantity,noise_size[0],noise_size[1]))
+for i in range(noiseQuantity):
+    noise_instances[i]=gaussNoise()
+noise_instances = np.clip(noise_instances, -3, 3)    
+noise_instances = (noise_instances - noise_instances.min()) / (noise_instances.max() - noise_instances.min())*2-1 # normalize the noise
+
+def noise_visual_func(noiseQuantity):
+    noise_obj=[]
+    for i in range(noiseQuantity):
+        noise_obj.append( visual.GratingStim(win, tex=noise_instances[i], size=noise_size, interpolate=False,units='pix'))
+        noise_obj[-1].draw()    # draw noise
+    return noise_obj
+
+noise_obj=noise_visual_func(noiseQuantity)
+
+
+####################### Blob Generation #######################
 # Blob properties
 initial_blob_std= arcmin_to_px(arcmin=11,h=screen_height,d=screen_distance,r=field_size[0]) 
 total_lum=1*(2*np.pi*initial_blob_std ** 2)*1 # Total luminance of blobm
@@ -96,8 +116,7 @@ def generateBlob(space_constant):
     blob = blob_amplitude * np.exp(-((x - noise_size[0] / 2)**2 + (y - noise_size[1] / 2)**2) / (2 * blob_std**2))
     #blob = (blob - blob.min()) / (blob.max() - blob.min())*2-1 # normalize the blob
     return blob
-
-## create blobs for each of the conditions
+# create blobs for each of the conditions
 blob_widths=[11,13,17,21,25,29]
 blobs=[]
 for blob_width in blob_widths:
@@ -115,6 +134,7 @@ expectedFrameRate=60
 expectedDuration=20 # in seconds
 expectedFrames=expectedFrameRate*expectedDuration
 
+"""                         BLOB MOTION                """ 
 # Blob motion by changing velocity on x and y axis according to the brownian motion
 def generateBrownianMotion(field_size, velocity_std, duration):
     # Generate random velocity for each frame
@@ -129,29 +149,12 @@ def generateBrownianMotion(field_size, velocity_std, duration):
     pos_y = np.clip(pos_y, -field_size/2, field_size/2 )
     return (pos_x, pos_y)
 
-# pre-generate noises
-noiseQuantity=120
-noise_instances=np.empty((noiseQuantity,noise_size[0],noise_size[1]))
-for i in range(noiseQuantity):
-    noise_instances[i]=gaussNoise()
-noise_instances = np.clip(noise_instances, -3, 3)    
-noise_instances = (noise_instances - noise_instances.min()) / (noise_instances.max() - noise_instances.min())*2-1 # normalize the noise
 
     
-# Observation pointer for participant tracking of blob
-#circle showing mouse position
+"""                     OBSERVER POINTER             """
 obs_pointer = visual.Circle(win, radius=10, fillColor=[1, 0, 0], units='pix',size=0.35)
-#Mouse properties
-mouse.mouseClock = core.Clock()
 
-def noise_visual_func(noiseQuantity):
-    noise_obj=[]
-    for i in range(noiseQuantity):
-        noise_obj.append( visual.GratingStim(win, tex=noise_instances[i], size=noise_size, interpolate=False,units='pix'))
-        noise_obj[-1].draw()    # draw noise
-    return noise_obj
 
-noise_obj=noise_visual_func(noiseQuantity)
 
 ##################### Trials Start Here #####################
 # data to save
@@ -181,13 +184,8 @@ for blob_width in (blob_widths):#conditions:
     print(blob_width)
     blob_std=arcmin_to_px(arcmin=blob_width,h=screen_height,d=screen_distance,r=field_size[0])
     # create blob
-    #blob=generateBlob(blob_std)
-    #blob=blobs[int(np.where(np.array(blob_widths)==blob_width)[0])]
     blob=blob_dict[blob_width]
-
     blob_obj = visual.GratingStim(win, tex=None, mask=blob,  units='pix', interpolate=False)
-
-
     # create observation pointer
     obs_pointer.setAutoDraw(False)
     mouse.setPos(newPos=(0,0))
@@ -216,14 +214,12 @@ for blob_width in (blob_widths):#conditions:
     frameN = -1
     routineTimer.reset()
     t = 0
-
     # # wait for 1 second before starting the trial
     waiterTime=0
     while  waiterTime <0.5:
         waiterTime = globalClock.getTime() - tStart
         win.flip()
-
-    t = 0
+    tStart = globalClock.getTime()
     # draw the stimulus
     obs_pointer.setAutoDraw(True)
     blob_obj.setAutoDraw(True)
@@ -253,6 +249,7 @@ for blob_width in (blob_widths):#conditions:
             core.quit()
  
     blob_obj.setAutoDraw(False)
+    obs_pointer.setAutoDraw(False)
 
     t = routineTimer.getTime()
     print(t)
@@ -267,25 +264,15 @@ for blob_width in (blob_widths):#conditions:
     all_mouse_x.append(mouse.x)
     all_mouse_y.append(mouse.y)
     all_mouse_v.append(mouse.v)
-    ###
-    # save target velocity
 
-
-    # save mouse positions
 
 # Close the window
 event.waitKeys()
 win.close()
-
 # write mouse positions, velocities, and blob velocities and positions and conditions as a matlab data file
-# save mouse positions
-
 import scipy.io as sio
 conditions=conditions.T
 sio.savemat('recorded/all.mat', {'mouse_x': all_mouse_x, 'mouse_y': all_mouse_y, 'mouse_v': all_mouse_v, 'blob_x': all_blob_x, 'blob_y': all_blob_y, 'blob_v': all_blob_v, 'blob_width': conditions})
-
-# transpoze conditions
-
 
 
 
