@@ -221,8 +221,10 @@ for blob_width in (blob_widths):#conditions:
         win.flip()
     tStart = globalClock.getTime()
     # draw the stimulus
-    obs_pointer.setAutoDraw(True)
+
     blob_obj.setAutoDraw(True)
+    obs_pointer.setAutoDraw(True)
+    # set depth of blob
     mouse.setVisible(False)  
     ##################### Trial Start #####################
     while continueRoutine:
