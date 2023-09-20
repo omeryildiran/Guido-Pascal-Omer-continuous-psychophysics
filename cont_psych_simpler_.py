@@ -18,26 +18,7 @@ from create_conditions import condition_creater
 from psychopy import prefs
 
 #prefs.hardware['audioLib'] = ['PTB']
-conditions= condition_creater()
-# import conditions.npy
-#conditions=np.load('conditions.npy')
-# Create PsychoPy window covering the whole screen
-win = visual.Window(size=(512, 512), fullscr=False, monitor='testMonitor', units='pix', color=[0, 0, 0], useFBO=True)
-field_size=(512,512)
-
-#setup screen properties
-screen_width=28
-screen_height=17
-screen_distance=50
-### Set the monitor to the correct distance and size
-#win.monitor.setSizePix(field_size)
-win.monitor.setWidth(screen_width)
-win.monitor.setDistance(screen_distance)
-mouse = event.Mouse(win=win,visible=False)
-# TODO: arcmin to px conversion but open it later
-# def arcmin_to_px(arcmin=1,h=19,d=57,r=1080):
-#     dva= arcmin/60
-#     return(monitorunittools.deg2pix(degrees=dva,monitor=win.monitor))
+"""          Experiment INFO Setup"""
 
 # Store info about the experiment session
 psychopyVersion = '2022.2.4'
@@ -46,9 +27,26 @@ expInfo = {
     'participant': f"{randint(0, 999999):06.0f}",
     'session': '001',
 }
+# --- Show participant info dialog --
+dlg = gui.DlgFromDict(dictionary=expInfo, sortKeys=False, title=expName)
+if dlg.OK == False:
+    core.quit()  # user pressed cancel
 expInfo['date'] = data.getDateStr()  # add a simple timestamp
 expInfo['expName'] = expName
 expInfo['psychopyVersion'] = psychopyVersion
+
+# Ensure that relative paths start from the same directory as this script
+_thisDir = os.path.dirname(os.path.abspath(__file__))
+os.chdir(_thisDir)
+# Data file name stem = absolute path + name; later add .psyexp, .csv, .log, etc
+filename = _thisDir + os.sep + u'data/%s_%s_%s' % (expInfo['participant'], expName, expInfo['date'])
+
+#conditions= condition_creater()
+# import conditions.npy
+conditions=np.load('conditions.npy')
+# Create PsychoPy window covering the whole screen
+win = visual.Window(size=(1024,1024), fullscr=False, monitor='testMonitor', units='pix', color=[0, 0, 0], useFBO=True)
+field_size=(1024,1024)
 
 frameRate=win.getActualFrameRate()
 print(frameRate)
@@ -60,14 +58,21 @@ else:
 defaultKeyboard = keyboard.Keyboard(backend='iohub')
 endExpNow = False  # flag for 'escape' or other condition => quit the exp
 
-# Ensure that relative paths start from the same directory as this script
-_thisDir = os.path.dirname(os.path.abspath(__file__))
-os.chdir(_thisDir)
-# Data file name stem = absolute path + name; later add .psyexp, .csv, .log, etc
-filename = _thisDir + os.sep + u'data/%s_%s_%s' % (expInfo['participant'], expName, expInfo['date'])
+#setup screen properties
+screen_width=28
+screen_height=17
+screen_distance=57
+### Set the monitor to the correct distance and size
+#win.monitor.setSizePix(field_size)
+win.monitor.setWidth(screen_width)
+win.monitor.setDistance(screen_distance)
+mouse = event.Mouse(win=win,visible=False)
+# TODO: arcmin to px conversion but open it later
+# def arcmin_to_px(arcmin=1,h=19,d=57,r=1080):
+#     dva= arcmin/60
+#     return(monitorunittools.deg2pix(degrees=dva,monitor=win.monitor))
 
 
-endExpNow = False  # flag for 'escape' or other condition => quit the exp
 frameTolerance = 0.001  # how close to onset before 'same' frame
 # Noise properties
 noise_size = field_size  # Use the window size for noise texture
@@ -75,6 +80,8 @@ noise_arcmin = 11  # Standard deviation for pixel noise || noise intensity Adjus
 noise_std =arcmin_to_px(noise_arcmin,h=screen_height,d=screen_distance,r=field_size[0])# convert arcmin to std for Gaussian
 # Brownian motion properties
 velocity_std = 1.0  # Standard deviation of Gaussian white noise velocities
+blob_motion_std=arcmin_to_px(arcmin=1.32,h=screen_height,d=screen_distance,r=field_size[0])
+#blob_motion_std=1
 # Create some handy timers
 globalClock = core.Clock()  # to track the time since experiment started
 routineTimer = core.Clock()  # to track time remaining of each (possibly non-slip) routine 
@@ -132,13 +139,13 @@ for i in range(len(blob_widths)):
 magicNumber=600
 expectedFrameRate=60
 expectedDuration=20 # in seconds
-expectedFrames=expectedFrameRate*expectedDuration
+expectedFrames=1200
 
 """                         BLOB MOTION                """ 
 # Blob motion by changing velocity on x and y axis according to the brownian motion
 def generateBrownianMotion(field_size, velocity_std, duration):
     # Generate random velocity for each frame
-    num_frames = int(duration * expectedFrameRate)+5
+    num_frames = int(duration * expectedFrameRate)-1
     velocies_x=np.random.normal(0, velocity_std, num_frames)
     velocies_y=np.random.normal(0, velocity_std, num_frames)
     # new positions = old position + velocity
@@ -151,10 +158,10 @@ def generateBrownianMotion(field_size, velocity_std, duration):
 
 
     
-"""                     OBSERVER POINTER             """
+##            OBSERVER POINTER             """
 obs_pointer = visual.Circle(win, radius=10, fillColor=[1, 0, 0], units='pix',size=0.35)
-
-
+##    fixation cross for the beginning of the trial (before start of the trial )  
+fixationCross=visual.TextStim(win, text='+', color=[1, 1, 1], units='pix', height=20)
 
 ##################### Trials Start Here #####################
 # data to save
@@ -176,12 +183,29 @@ def black_to_transparent(img):
     alpha_img[:,:,num_channels] = mask
     return alpha_img
 
+"""                  Have a REST SCREEN       """
+trialNum=1
+haveRest=False
+haveRestText=visual.TextStim(win, text='Please have a rest for a few seconds, then press space to continue', color=[1, 1, 1], units='pix', height=20)
+haveRestNum=30
+#####
+sigma_trials=[]
 win.setMouseVisible(False)        
-for blob_width in (blob_widths):#conditions:
+for blob_width in conditions:
+    sigma_trials.append(blob_width)
+    #save conditions
+    if trialNum%haveRestNum==0:
+        haveRest=True
+        while haveRest:
+            haveRestText.draw()
+            win.flip()
+            if defaultKeyboard.getKeys(keyList=["space"]):
+                haveRest=False
+    mouse.setPos((0,0))
     # set a timer for the next line record the time spent
     tStart = globalClock.getTime()
     # clear all drawings
-    print(blob_width)
+    #print(blob_width)
     blob_std=arcmin_to_px(arcmin=blob_width,h=screen_height,d=screen_distance,r=field_size[0])
     # create blob
     blob=blob_dict[blob_width]
@@ -195,7 +219,7 @@ for blob_width in (blob_widths):#conditions:
     mouse.x=[]
     # create magicNumber frames of stimuli
     # create blob motion positions
-    pos_x_obj, pos_y_obj = generateBrownianMotion(field_size=noise_size[0], velocity_std=1, duration=expectedDuration)# pre-generate brownian motion
+    pos_x_obj, pos_y_obj = generateBrownianMotion(field_size=noise_size[0], velocity_std=blob_motion_std, duration=expectedDuration)# pre-generate brownian motion
     pos_x_obj=np.insert(pos_x_obj,0,0)
     pos_y_obj=np.insert(pos_y_obj,0,0)
     # calcuate velocity of blob
@@ -206,7 +230,6 @@ for blob_width in (blob_widths):#conditions:
     all_blob_y.append(pos_y_obj)
     all_blob_v.append(blob_v)
 
-    tEnd = globalClock.getTime()
     win.clearBuffer()
     intensity_profiles = []  # List to store intensity profiles
     continueRoutine = True
@@ -218,21 +241,19 @@ for blob_width in (blob_widths):#conditions:
     waiterTime=0
     while  waiterTime <0.5:
         waiterTime = globalClock.getTime() - tStart
+        fixationCross.draw()
         win.flip()
-    tStart = globalClock.getTime()
     # draw the stimulus
-
     blob_obj.setAutoDraw(True)
     obs_pointer.setAutoDraw(True)
-    # set depth of blob
     mouse.setVisible(False)  
+    tStart = globalClock.getTime()
     ##################### Trial Start #####################
     while continueRoutine:
-        t = routineTimer.getTime()
+        # t = routineTimer.getTime()
         #tThisFlip = win.getFutureFlipTime(clock=routineTimer)
         #tThisFlipGlobal = win.getFutureFlipTime(clock=None)
         frameN+= 1  # number of completed frames (so 0 is the first frame)
-
         # draw the stimulus
         obs_pointer.setPos(mouse.getPos())
         noise_obj[int(randint(0,noiseQuantity))].draw()    # draw noise
@@ -244,39 +265,47 @@ for blob_width in (blob_widths):#conditions:
         # flip the window
         win.flip()
         # end the loop after given seconds
-        if frameN > expectedFrames-1:
+        if frameN > expectedFrames-2:
             continueRoutine = False
         # check for quit (typically the Esc key)
         if endExpNow or defaultKeyboard.getKeys(keyList=["escape"]):
-            core.quit()
+            endExpNow = True
+            continueRoutine = False
+            #core.quit()
  
     blob_obj.setAutoDraw(False)
     obs_pointer.setAutoDraw(False)
-
+    
+    trialNum+=1
+    tEnd = globalClock.getTime()
+    #print(tEnd-tStart)
     t = routineTimer.getTime()
-    print(t)
-    print(tEnd-tStart)
-    print(frameN)
+    #print(t)
+    #print(frameN)
 
     # save positions of target, mouse, and but first calculate velocities
     mouse.x = np.array(mouse.x)
     mouse.y = np.array(mouse.y)
     mouse.v = np.sqrt(np.diff(mouse.x)**2 + np.diff(mouse.y)**2)
-    mouse.v = np.insert(mouse.v, 0, 0)
+    #mouse.v = np.insert(mouse.v, 0, 0)
     all_mouse_x.append(mouse.x)
     all_mouse_y.append(mouse.y)
     all_mouse_v.append(mouse.v)
 
+    if endExpNow or defaultKeyboard.getKeys(keyList=["escape"]):
+        win.close()
+        break
 
 # Close the window
-event.waitKeys()
-win.close()
+#event.waitKeys()
+#win.close()
 # write mouse positions, velocities, and blob velocities and positions and conditions as a matlab data file
 import scipy.io as sio
 conditions=conditions.T
-sio.savemat('recorded/all.mat', {'mouse_x': all_mouse_x, 'mouse_y': all_mouse_y, 'mouse_v': all_mouse_v, 'blob_x': all_blob_x, 'blob_y': all_blob_y, 'blob_v': all_blob_v, 'blob_width': conditions})
+filename = u'data/%s_%s_%s' % (expInfo['participant'], expName, expInfo['date'])
+sio.savemat(filename+'.mat', {'mouse_x': all_mouse_x, 'mouse_y': all_mouse_y, 'mouse_v': all_mouse_v, 'blob_x': all_blob_x, 'blob_y': all_blob_y, 'blob_v': all_blob_v, 'blob_width': sigma_trials})
 
-
+core.quit()
 
 
 
