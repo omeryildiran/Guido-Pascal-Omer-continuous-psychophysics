@@ -1,3 +1,10 @@
+# optimizing continuous psychophysics experiment  code
+# Omer F. Yildiran
+# Start date: August 2023
+# ENS-PSL LSP, Cognitice Science Masters 2nd year thesis project
+# Supervisors: Guido Maiello and Pascal Mamassian
+
+
 from psychopy import visual, core, event
 import numpy as np
 import psychopy.iohub as io
@@ -74,12 +81,53 @@ mouse = event.Mouse(win=win,visible=False)
 #     return(monitorunittools.deg2pix(degrees=dva,monitor=win.monitor))
 frameTolerance = 0.001  # how close to onset before 'same' frame
 
+
+########################################################################################################################
+"""                     NOISE BACKGROUND           """
+# Background noise
+# Noise properties
+noise_size = field_size  # Use the window size for noise texture
+noise_arcmin = 11  # Standard deviation for pixel noise || noise intensity Adjust to control noise intensity
+noise_std =arcmin_to_px(noise_arcmin,h=screen_height,d=screen_distance,r=field_size[0])# convert arcmin to std for Gaussian
+noiseQuantity=120
+class NoiseGenerator:
+    def __init__(self, noise_size, noise_intensity=1, noise_quantity=120):
+        self.noise_size = noise_size
+        self.noise_intensity = noise_intensity
+        self.noise_quantity = noise_quantity
+        self.noise_instances = self._generate_noises()
+
+    def gauss_noise(self):
+        noise = np.random.normal(0, self.noise_intensity, size=self.noise_size)
+        return noise
+
+    def _generate_noises(self):
+        noise_instances = np.empty((self.noise_quantity, self.noise_size[0], self.noise_size[1]))
+        for i in range(self.noise_quantity):
+            noise_instances[i] = self.gauss_noise()
+        
+        noise_instances = np.clip(noise_instances, -3, 3)
+        noise_instances = (noise_instances - noise_instances.min()) / (noise_instances.max() - noise_instances.min()) * 2 - 1
+        return noise_instances
+
+    def create_visual_objects(self, win):
+        noise_objects = []
+        for i in range(self.noise_quantity):
+            noise_objects.append(visual.GratingStim(win, tex=self.noise_instances[i], size=self.noise_size, interpolate=False, units='pix'))
+            noise_objects[-1].draw()  # draw noise
+        return noise_objects
+    
+
 """             Welcome screen to give instructions to the participant         """
 # Welcome screen
 welcomeText = visual.TextStim(win, text='Welcome to the experiment', color=[1, 1, 1], units='pix', height=20)
 welcomeText.draw()
 win.flip()
+noise_gen = NoiseGenerator(noise_size)
+noise_obj = noise_gen.create_visual_objects(win)# Generate and draw noise objects
 event.waitKeys()
+
+win.flip()
 # Instructions screen
 instructionsText = visual.TextStim(win, text='Please follow the blob with your mouse', color=[1, 1, 1], units='pix', height=20)
 instructionsText.draw()
@@ -87,10 +135,10 @@ win.flip()
 event.waitKeys()
 
 
-# Noise properties
-noise_size = field_size  # Use the window size for noise texture
-noise_arcmin = 11  # Standard deviation for pixel noise || noise intensity Adjust to control noise intensity
-noise_std =arcmin_to_px(noise_arcmin,h=screen_height,d=screen_distance,r=field_size[0])# convert arcmin to std for Gaussian
+
+
+
+
 # Brownian motion properties
 velocity_std = 1.0  # Standard deviation of Gaussian white noise velocities
 blob_motion_std=arcmin_to_px(arcmin=1.32,h=screen_height,d=screen_distance,r=field_size[0])
@@ -100,29 +148,7 @@ globalClock = core.Clock()  # to track the time since experiment started
 routineTimer = core.Clock()  # to track time remaining of each (possibly non-slip) routine 
 
 
-########################################################################################################################
-"""                     NOISE BACKGROUND           """
-# Background noise
-def gaussNoise(noise_intensity=1):
-    noise = np.random.normal(0, noise_intensity, size=noise_size)
-    return noise
 
-# pre-generate noises
-noiseQuantity=120
-noise_instances=np.empty((noiseQuantity,noise_size[0],noise_size[1]))
-for i in range(noiseQuantity):
-    noise_instances[i]=gaussNoise()
-noise_instances = np.clip(noise_instances, -3, 3)    
-noise_instances = (noise_instances - noise_instances.min()) / (noise_instances.max() - noise_instances.min())*2-1 # normalize the noise
-
-def noise_visual_func(noiseQuantity):
-    noise_obj=[]
-    for i in range(noiseQuantity):
-        noise_obj.append( visual.GratingStim(win, tex=noise_instances[i], size=noise_size, interpolate=False,units='pix'))
-        noise_obj[-1].draw()    # draw noise
-    return noise_obj
-
-noise_obj=noise_visual_func(noiseQuantity)
 
 ####################### Blob Generation #######################
 # Blob properties
@@ -268,7 +294,7 @@ for blob_width in conditions:
     tStart = globalClock.getTime()
     response_x=np.empty((expectedFrames))
     response_y=np.empty((expectedFrames))
-
+    mouse_v=np.empty((expectedFrames))
     ##################### Trial Start #####################
     while continueRoutine:
         # t = routineTimer.getTime()
