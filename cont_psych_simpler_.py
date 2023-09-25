@@ -56,6 +56,7 @@ if expInfo['frameRate'] != None:
 else:
     frameDur = 1.0 / 60.0  # could not measure, so guess
 defaultKeyboard = keyboard.Keyboard(backend='iohub')
+space2pass=keyboard.Keyboard()
 endExpNow = False  # flag for 'escape' or other condition => quit the exp
 
 #setup screen properties
@@ -71,9 +72,21 @@ mouse = event.Mouse(win=win,visible=False)
 # def arcmin_to_px(arcmin=1,h=19,d=57,r=1080):
 #     dva= arcmin/60
 #     return(monitorunittools.deg2pix(degrees=dva,monitor=win.monitor))
-
-
 frameTolerance = 0.001  # how close to onset before 'same' frame
+
+"""             Welcome screen to give instructions to the participant         """
+# Welcome screen
+welcomeText = visual.TextStim(win, text='Welcome to the experiment', color=[1, 1, 1], units='pix', height=20)
+welcomeText.draw()
+win.flip()
+event.waitKeys()
+# Instructions screen
+instructionsText = visual.TextStim(win, text='Please follow the blob with your mouse', color=[1, 1, 1], units='pix', height=20)
+instructionsText.draw()
+win.flip()
+event.waitKeys()
+
+
 # Noise properties
 noise_size = field_size  # Use the window size for noise texture
 noise_arcmin = 11  # Standard deviation for pixel noise || noise intensity Adjust to control noise intensity
@@ -111,7 +124,6 @@ def noise_visual_func(noiseQuantity):
 
 noise_obj=noise_visual_func(noiseQuantity)
 
-
 ####################### Blob Generation #######################
 # Blob properties
 initial_blob_std= arcmin_to_px(arcmin=11,h=screen_height,d=screen_distance,r=field_size[0]) 
@@ -138,8 +150,8 @@ for i in range(len(blob_widths)):
 
 magicNumber=600
 expectedFrameRate=60
-expectedDuration=20 # in seconds
-expectedFrames=1200
+expectedDuration=1 # in seconds
+expectedFrames=expectedFrameRate*expectedDuration
 
 """                         BLOB MOTION                """ 
 # Blob motion by changing velocity on x and y axis according to the brownian motion
@@ -187,20 +199,26 @@ def black_to_transparent(img):
 trialNum=1
 haveRest=False
 haveRestText=visual.TextStim(win, text='Please have a rest for a few seconds, then press space to continue', color=[1, 1, 1], units='pix', height=20)
-haveRestNum=30
+haveRestNum=1
 #####
 sigma_trials=[]
 win.setMouseVisible(False)        
 for blob_width in conditions:
     sigma_trials.append(blob_width)
+    _space2pass_allKeys = []
+    space2pass.keys = []
+    space2pass.clearEvents(eventType='keyboard')
     #save conditions
-    if trialNum%haveRestNum==0:
+    if trialNum%haveRestNum==0 and trialNum!=1:
         haveRest=True
         while haveRest:
             haveRestText.draw()
             win.flip()
-            if defaultKeyboard.getKeys(keyList=["space"]):
+            theseKeys = space2pass.getKeys(keyList=['space'], waitRelease=False)
+            _space2pass_allKeys.extend(theseKeys)
+            if len(_space2pass_allKeys)>0:
                 haveRest=False
+
     mouse.setPos((0,0))
     # set a timer for the next line record the time spent
     tStart = globalClock.getTime()
@@ -248,6 +266,9 @@ for blob_width in conditions:
     obs_pointer.setAutoDraw(True)
     mouse.setVisible(False)  
     tStart = globalClock.getTime()
+    response_x=np.empty((expectedFrames))
+    response_y=np.empty((expectedFrames))
+
     ##################### Trial Start #####################
     while continueRoutine:
         # t = routineTimer.getTime()
@@ -260,8 +281,8 @@ for blob_width in conditions:
         blob_obj.setPos((pos_x_obj[frameN], pos_y_obj[frameN]))
 
         #save mouse position
-        mouse.x.append(obs_pointer.pos[0])
-        mouse.y.append(obs_pointer.pos[1])
+        response_x[frameN]=obs_pointer.pos[0]
+        response_y[frameN]=obs_pointer.pos[1]
         # flip the window
         win.flip()
         # end the loop after given seconds
@@ -284,13 +305,14 @@ for blob_width in conditions:
     #print(frameN)
 
     # save positions of target, mouse, and but first calculate velocities
-    mouse.x = np.array(mouse.x)
-    mouse.y = np.array(mouse.y)
-    mouse.v = np.sqrt(np.diff(mouse.x)**2 + np.diff(mouse.y)**2)
-    #mouse.v = np.insert(mouse.v, 0, 0)
-    all_mouse_x.append(mouse.x)
-    all_mouse_y.append(mouse.y)
-    all_mouse_v.append(mouse.v)
+    response_x = np.array(response_x)
+    response_y = np.array(response_y)
+    mouse_v = np.sqrt(np.diff(response_x)**2 + np.diff(response_y)**2)
+    mouse_v = np.insert(mouse_v, 0, 0)
+    all_mouse_x.append(response_x)
+    all_mouse_y.append(response_y)
+    all_mouse_v.append(mouse_v)
+    space2pass.keys = None
 
     if endExpNow or defaultKeyboard.getKeys(keyList=["escape"]):
         win.close()
