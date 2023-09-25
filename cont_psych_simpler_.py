@@ -120,19 +120,31 @@ class NoiseGenerator:
 
 """             Welcome screen to give instructions to the participant         """
 # Welcome screen
-welcomeText = visual.TextStim(win, text='Welcome to the experiment', color=[1, 1, 1], units='pix', height=20)
+welcomeText="""
+Welcome to the experiment your aim is to 
+follow the blob with your mouse.
+In the beginning of each trial you will see a fixation cross
+Then you will see a blob moving around the screen
+You will be asked to follow the blob with your mouse 
+"""
+welcomeText = visual.TextStim(win, text=welcomeText,
+                              color=[1, 1, 1], units='pix', height=20)
 welcomeText.draw()
 win.flip()
 noise_gen = NoiseGenerator(noise_size)
 noise_obj = noise_gen.create_visual_objects(win)# Generate and draw noise objects
-event.waitKeys()
+win.flip()
+# draw a text that indicate the participant to press space to continue
+pressText=visual.TextStim(win, text='Press any key to continue',
+                        pos=(0, -300),
+                        color='red',colorSpace='rgb',units='pix', height=20)
+welcomeText.draw()
+pressText.draw()
+win.flip()
 
-win.flip()
-# Instructions screen
-instructionsText = visual.TextStim(win, text='Please follow the blob with your mouse', color=[1, 1, 1], units='pix', height=20)
-instructionsText.draw()
-win.flip()
 event.waitKeys()
+win.flip()
+
 
 
 
@@ -197,7 +209,7 @@ def generateBrownianMotion(field_size, velocity_std, duration):
 
     
 ##            OBSERVER POINTER             """
-obs_pointer = visual.Circle(win, radius=10, fillColor=[1, 0, 0], units='pix',size=0.35)
+obs_pointer = visual.Circle(win, radius=10, fillColor='red',colorSpace='rgb', units='pix',size=0.35)
 ##    fixation cross for the beginning of the trial (before start of the trial )  
 fixationCross=visual.TextStim(win, text='+', color=[1, 1, 1], units='pix', height=20)
 
@@ -224,7 +236,7 @@ def black_to_transparent(img):
 """                  Have a REST SCREEN       """
 trialNum=1
 haveRest=False
-haveRestText=visual.TextStim(win, text='Please have a rest for a few seconds, then press space to continue', color=[1, 1, 1], units='pix', height=20)
+haveRestText=visual.TextStim(win, text='Press space to continue', color=[1, 1, 1], units='pix', height=20)
 haveRestNum=1
 #####
 sigma_trials=[]
