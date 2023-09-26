@@ -48,12 +48,12 @@ os.chdir(_thisDir)
 # Data file name stem = absolute path + name; later add .psyexp, .csv, .log, etc
 filename = _thisDir + os.sep + u'data/%s_%s_%s' % (expInfo['participant'], expName, expInfo['date'])
 
-#conditions= condition_creater()
+conditions= condition_creater()
 # import conditions.npy
-conditions=np.load('conditions.npy')
+#conditions=np.load('conditions.npy')
 # Create PsychoPy window covering the whole screen
-win = visual.Window(size=(1024,1024), fullscr=False, monitor='testMonitor', units='pix', color=[0, 0, 0], useFBO=True)
-field_size=(1024,1024)
+win = visual.Window(size=(600,600), fullscr=True, monitor='testMonitor', units='pix', color=[0, 0, 0], useFBO=True)
+field_size=[600,600]
 
 frameRate=win.getActualFrameRate()
 print(frameRate)
@@ -153,7 +153,7 @@ win.flip()
 
 # Brownian motion properties
 velocity_std = 1.0  # Standard deviation of Gaussian white noise velocities
-blob_motion_std=arcmin_to_px(arcmin=1.32,h=screen_height,d=screen_distance,r=field_size[0])
+blob_motion_std=1#arcmin_to_px(arcmin=1.32,h=screen_height,d=screen_distance,r=field_size[0])
 #blob_motion_std=1
 # Create some handy timers
 globalClock = core.Clock()  # to track the time since experiment started
@@ -188,7 +188,7 @@ for i in range(len(blob_widths)):
 
 magicNumber=600
 expectedFrameRate=60
-expectedDuration=1 # in seconds
+expectedDuration=20 # in seconds
 expectedFrames=expectedFrameRate*expectedDuration
 
 """                         BLOB MOTION                """ 
@@ -241,7 +241,7 @@ haveRestNum=1
 #####
 sigma_trials=[]
 win.setMouseVisible(False)        
-for blob_width in conditions:
+for blob_width in conditions[:30]:
     sigma_trials.append(blob_width)
     _space2pass_allKeys = []
     space2pass.keys = []
@@ -363,8 +363,7 @@ for blob_width in conditions:
 import scipy.io as sio
 conditions=conditions.T
 filename = u'data/%s_%s_%s' % (expInfo['participant'], expName, expInfo['date'])
-sio.savemat(filename+'.mat', {'mouse_x': all_mouse_x, 'mouse_y': all_mouse_y, 'mouse_v': all_mouse_v, 'blob_x': all_blob_x, 'blob_y': all_blob_y, 'blob_v': all_blob_v, 'blob_width': sigma_trials})
-
+sio.savemat(filename+'.mat', {'mouse_x': all_mouse_x, 'mouse_y': all_mouse_y, 'response': all_mouse_v, 'blob_x': all_blob_x, 'blob_y': all_blob_y, 'target': all_blob_v, 'sigma': sigma_trials})
 core.quit()
 
 
