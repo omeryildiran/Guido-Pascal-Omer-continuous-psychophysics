@@ -35,4 +35,4 @@ def condition_creater():
 # conditions_df['total_trialN']=total_trialN
 
 # # create a csv file
-# conditions_df.to_csv('conditions.csv', index=False)
+# conditions_df.to_csv('conditions.csv', index=False)ll
