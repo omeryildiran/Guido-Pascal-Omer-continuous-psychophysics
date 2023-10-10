@@ -52,8 +52,8 @@ conditions= condition_creater()
 # import conditions.npy
 #conditions=np.load('conditions.npy')
 # Create PsychoPy window covering the whole screen
-win = visual.Window(size=(600,600), fullscr=True, monitor='testMonitor', units='pix', color=[0, 0, 0], useFBO=True)
-field_size=[600,600]
+win = visual.Window(size=(1024,1024), fullscr=False, monitor='testMonitor', units='pix', color=[0, 0, 0], useFBO=True)
+field_size=[1024,1024]
 
 frameRate=win.getActualFrameRate()
 print(frameRate)
@@ -67,7 +67,7 @@ space2pass=keyboard.Keyboard()
 endExpNow = False  # flag for 'escape' or other condition => quit the exp
 
 #setup screen properties
-screen_width=28
+screen_width=28 # actual size of my screen in cm is 28x17
 screen_height=17
 screen_distance=57
 ### Set the monitor to the correct distance and size
@@ -80,7 +80,6 @@ mouse = event.Mouse(win=win,visible=False)
 #     dva= arcmin/60
 #     return(monitorunittools.deg2pix(degrees=dva,monitor=win.monitor))
 frameTolerance = 0.001  # how close to onset before 'same' frame
-
 
 ########################################################################################################################
 """                     NOISE BACKGROUND           """
@@ -153,7 +152,7 @@ win.flip()
 
 # Brownian motion properties
 velocity_std = 1.0  # Standard deviation of Gaussian white noise velocities
-blob_motion_std=1#arcmin_to_px(arcmin=1.32,h=screen_height,d=screen_distance,r=field_size[0])
+blob_motion_std=2#arcmin_to_px(arcmin=1.32,h=screen_height,d=screen_distance,r=field_size[0])
 #blob_motion_std=1
 # Create some handy timers
 globalClock = core.Clock()  # to track the time since experiment started
