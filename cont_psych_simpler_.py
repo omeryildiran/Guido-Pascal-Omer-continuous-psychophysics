@@ -52,8 +52,8 @@ conditions= condition_creater()
 # import conditions.npy
 #conditions=np.load('conditions.npy')
 # Create PsychoPy window covering the whole screen
-win = visual.Window(size=(1024,1024), fullscr=False, monitor='testMonitor', units='pix', color=[0, 0, 0], useFBO=True)
-field_size=[1024,1024]
+win = visual.Window(size=(600,600), fullscr=True, monitor='testMonitor', units='pix', color=[0, 0, 0], useFBO=True)
+field_size=[600,600]
 
 frameRate=win.getActualFrameRate()
 print(frameRate)
@@ -67,7 +67,7 @@ space2pass=keyboard.Keyboard()
 endExpNow = False  # flag for 'escape' or other condition => quit the exp
 
 #setup screen properties
-screen_width=28 # actual size of my screen in cm is 28x17
+screen_width=22 # actual size of my screen in cm is 28x17
 screen_height=17
 screen_distance=57
 ### Set the monitor to the correct distance and size
@@ -151,9 +151,8 @@ win.flip()
 
 
 # Brownian motion properties
-velocity_std = 1.0  # Standard deviation of Gaussian white noise velocities
+#velocity_std = 1.0  # Standard deviation of Gaussian white noise velocities
 blob_motion_std=2#arcmin_to_px(arcmin=1.32,h=screen_height,d=screen_distance,r=field_size[0])
-#blob_motion_std=1
 # Create some handy timers
 globalClock = core.Clock()  # to track the time since experiment started
 routineTimer = core.Clock()  # to track time remaining of each (possibly non-slip) routine 
@@ -208,7 +207,7 @@ def generateBrownianMotion(field_size, velocity_std, duration):
 
     
 ##            OBSERVER POINTER             """
-obs_pointer = visual.Circle(win, radius=10, fillColor='red',colorSpace='rgb', units='pix',size=0.35)
+obs_pointer = visual.Circle(win, radius=10, fillColor='red',colorSpace='rgb', units='pix',size=0.30)
 ##    fixation cross for the beginning of the trial (before start of the trial )  
 fixationCross=visual.TextStim(win, text='+', color=[1, 1, 1], units='pix', height=20)
 
@@ -240,7 +239,7 @@ haveRestNum=1
 #####
 sigma_trials=[]
 win.setMouseVisible(False)        
-for blob_width in conditions[:30]:
+for blob_width in conditions[:1]:
     sigma_trials.append(blob_width)
     _space2pass_allKeys = []
     space2pass.keys = []
@@ -354,6 +353,18 @@ for blob_width in conditions[:30]:
     if endExpNow or defaultKeyboard.getKeys(keyList=["escape"]):
         win.close()
         break
+
+# Create an Ending Screen
+endText=visual.TextStim(win, text='Thank you for your participation', color=[1, 1, 1], units='pix', height=20)
+endText.draw()
+win.flip()
+# and wait for participant to press space
+event.waitKeys()
+# Close the window
+core.wait(2)
+win.close()
+
+##
 
 # Close the window
 #event.waitKeys()
