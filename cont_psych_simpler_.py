@@ -239,7 +239,7 @@ haveRestNum=1
 #####
 sigma_trials=[]
 win.setMouseVisible(False)        
-for blob_width in conditions[:1]:
+for blob_width in conditions:
     sigma_trials.append(blob_width)
     _space2pass_allKeys = []
     space2pass.keys = []
@@ -360,8 +360,6 @@ endText.draw()
 win.flip()
 # and wait for participant to press space
 event.waitKeys()
-# Close the window
-core.wait(2)
 win.close()
 
 ##
