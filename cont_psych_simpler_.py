@@ -23,6 +23,7 @@ import sys  # to get file system encoding
 
 from create_conditions import condition_creater
 from psychopy import prefs
+from audio_cue import create_stereo_sound
 
 #prefs.hardware['audioLib'] = ['PTB']
 """          Experiment INFO Setup"""
@@ -52,8 +53,8 @@ conditions= condition_creater()
 # import conditions.npy
 #conditions=np.load('conditions.npy')
 # Create PsychoPy window covering the whole screen
-win = visual.Window(size=(600,600), fullscr=True, monitor='testMonitor', units='pix', color=[0, 0, 0], useFBO=True)
-field_size=[600,600]
+win = visual.Window(size=(256,256), fullscr=False, monitor='testMonitor', units='pix', color=[0, 0, 0], useFBO=True,screen=1)
+field_size=[256,256]
 
 frameRate=win.getActualFrameRate()
 print(frameRate)
@@ -116,6 +117,19 @@ class NoiseGenerator:
             noise_objects[-1].draw()  # draw noise
         return noise_objects
     
+
+########################################################################################################################
+""" AUDIO CUES"""
+# Create audio cues
+sampling_rate=44100
+dur=0.016 # in seconds
+left_aud_cue=create_stereo_sound(duration=dur, sample_rate=sampling_rate, beep_frequency=440,channel='left')
+right_aud_cue=create_stereo_sound(duration=dur, sample_rate=sampling_rate, beep_frequency=440,channel='right')
+# Create audio object
+left_audio=sound.Sound(left_aud_cue,sampleRate=sampling_rate)
+right_audio=sound.Sound(right_aud_cue ,sampleRate=sampling_rate)
+########################################################################################################################
+
 
 """             Welcome screen to give instructions to the participant         """
 # Welcome screen
@@ -222,14 +236,6 @@ all_mouse_x = []
 all_mouse_y = []
 all_mouse_v=[]
 
-def black_to_transparent(img):
-    num_channels = img.shape[2]
-    dimensions = img.shape[0:2]
-    alpha_channel = (np.ones(dimensions) * 255).astype(np.uint8)
-    alpha_img = np.dstack((img, alpha_channel ))
-    mask = np.sum(alpha_img[:, :, 0:img.shape[2]], axis=2).clip(0,255)
-    alpha_img[:,:,num_channels] = mask
-    return alpha_img
 
 """                  Have a REST SCREEN       """
 trialNum=1
@@ -311,10 +317,31 @@ for blob_width in conditions:
         #tThisFlip = win.getFutureFlipTime(clock=routineTimer)
         #tThisFlipGlobal = win.getFutureFlipTime(clock=None)
         frameN+= 1  # number of completed frames (so 0 is the first frame)
+        # Play audio cue based on position change
+        
+        horizontal_right = (pos_x_obj[frameN+1] - pos_x_obj[frameN])>0
+        if horizontal_right > 0:
+            right_audio.play()
+            # Assuming 'win' is your window
+            win.colorSpace = 'rgb'  # this line may not be necessary if your colorSpace is already 'rgb'
+            win.setColor([1, -1, -1])  # set the color to red
+            noise_obj[int(randint(0,noiseQuantity))].color=(1, -1, -1)
+            blob_obj.color=(1, -1, -1)
+
+        else:
+            left_audio.play()
+            win.colorSpace = 'rgb'  # this line may not be necessary if your colorSpace is already 'rgb'
+             # set the color to green
+            win.setColor([-1, 1, -1])
+            noise_obj[int(randint(0,noiseQuantity))].color=(-1, 1, -1)
+            blob_obj.color=(-1, 1, -1)
+        
         # draw the stimulus
         obs_pointer.setPos(mouse.getPos())
         noise_obj[int(randint(0,noiseQuantity))].draw()    # draw noise
         blob_obj.setPos((pos_x_obj[frameN], pos_y_obj[frameN]))
+
+   
 
         #save mouse position
         response_x[frameN]=obs_pointer.pos[0]
@@ -329,7 +356,10 @@ for blob_width in conditions:
             endExpNow = True
             continueRoutine = False
             #core.quit()
+        right_audio.stop()
+        left_audio.stop()
  
+
     blob_obj.setAutoDraw(False)
     obs_pointer.setAutoDraw(False)
     
