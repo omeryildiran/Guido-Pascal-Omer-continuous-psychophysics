@@ -54,7 +54,7 @@ conditions= condition_creater()
 #conditions=np.load('conditions.npy')
 # Create PsychoPy window covering the whole screen
 sizeIs=512
-win = visual.Window(size=(sizeIs,sizeIs), fullscr=False, monitor='testMonitor', units='pix', color=[0, 0, 0], useFBO=True,screen=0)
+win = visual.Window(size=(sizeIs,sizeIs), fullscr=False, monitor='testMonitor', units='pix', color=[0, 0, 0], useFBO=True,screen=0,colorSpace='rgb')
 field_size=[sizeIs,sizeIs]
 
 frameRate=win.getActualFrameRate()
@@ -123,10 +123,12 @@ class NoiseGenerator:
 """ AUDIO CUES"""
 # Create audio cues
 sampling_rate=44100
-dur=0.5 # in seconds
-left_aud_cue=create_stereo_sound(duration=dur, sample_rate=sampling_rate, beep_frequency=440,channel='left')
-right_aud_cue=create_stereo_sound(duration=dur, sample_rate=sampling_rate, beep_frequency=440,channel='right')
-dynamic_sound= positional_audio(duration=dur, sample_rate=sampling_rate, relative_pos_x=-0.5)
+audioDur=0.32 # in seconds
+left_aud_cue=create_stereo_sound(duration=audioDur # in seconds
+, sample_rate=sampling_rate, beep_frequency=440,channel='left')
+right_aud_cue=create_stereo_sound(duration=audioDur # in seconds
+, sample_rate=sampling_rate, beep_frequency=440,channel='right')
+dynamic_sound= positional_audio(duration=audioDur, sample_rate=sampling_rate, relative_pos_x=0)
 # Create audio object
 left_audio=sound.Sound(left_aud_cue,sampleRate=sampling_rate)
 right_audio=sound.Sound(right_aud_cue ,sampleRate=sampling_rate)
@@ -304,15 +306,17 @@ for blob_width in conditions:
     blob_obj.setAutoDraw(True)
     obs_pointer.setAutoDraw(True)
     mouse.setVisible(False)  
-    tStart = globalClock.getTime()
     response_x=np.empty((expectedFrames))
     response_y=np.empty((expectedFrames))
     mouse_v=np.empty((expectedFrames))
     checkPointX=0
     checkPointY=0
+    curColor=[1, -1, -1]
+    dynamic_sound.play()
+    tStart = globalClock.getTime()
     ##################### Trial Start #####################
     while continueRoutine:
-        dynamic_sound.play()
+        random_noise_index = int(randint(0, noiseQuantity))
         # t = routineTimer.getTime()
         #tThisFlip = win.getFutureFlipTime(clock=routineTimer)
         #tThisFlipGlobal = win.getFutureFlipTime(clock=None)
@@ -320,47 +324,32 @@ for blob_width in conditions:
         # Play audio cue based on position change
         delta_x = pos_x_obj[frameN] - checkPointX # change in position after 10 frames
         delta_y = pos_y_obj[frameN] - checkPointY # 
-        relative_pos_x=pos_x_obj[frameN+10]/(field_size[0]/2)
-        relative_pos_y=pos_y_obj[frameN+10]/(field_size[1]/2)
-        if delta_x > 10:
-            dynamic_sound.stop()
-            dynamic_sound= positional_audio(duration=dur, sample_rate=sampling_rate, relative_pos_x=relative_pos_x)
-            dynamic_sound=sound.Sound(dynamic_sound ,sampleRate=sampling_rate)
-            dynamic_sound.play(loops=10)
-            checkPointX = pos_x_obj[frameN+10]
+        nAheadFrames=5
+        if frameN+nAheadFrames<expectedFrames-1:
+            relative_pos_x=pos_x_obj[frameN+nAheadFrames]/(field_size[0]/2)
+            relative_pos_y=pos_y_obj[frameN+nAheadFrames]/(field_size[1]/2)
+            if delta_x > 5:
+                #dynamic_sound.stop()
+                dynamic_sound= positional_audio(duration=audioDur, sample_rate=sampling_rate, relative_pos_x=relative_pos_x)
+                dynamic_sound=sound.Sound(dynamic_sound ,sampleRate=sampling_rate)
+                dynamic_sound.play(loops=2)
+                checkPointX = pos_x_obj[frameN+nAheadFrames]
+                curColor=[1, -1, -1]
+            elif delta_x < -5:
+                #dynamic_sound.stop()
+                dynamic_sound= positional_audio(duration=audioDur, sample_rate=sampling_rate, relative_pos_x=relative_pos_x)
+                dynamic_sound=sound.Sound(dynamic_sound ,sampleRate=sampling_rate)
+                dynamic_sound.play(loops=2)
+                checkPointX = pos_x_obj[frameN+nAheadFrames]
+                #curColor=[-1, 1, -1]
+        #noise_obj[random_noise_index].color=curColor
+        #blob_obj.color=curColor
+        #win.setColor(curColor)    
 
-            win.setColor([1, -1, -1])  # set the color to red
-            noise_obj[int(randint(0,noiseQuantity))].color=(1, -1, -1)
-            blob_obj.color=(1, -1, -1)
-        elif delta_x < -10:
-            dynamic_sound.stop()
-            dynamic_sound= positional_audio(duration=dur, sample_rate=sampling_rate, relative_pos_x=relative_pos_x)
-            dynamic_sound=sound.Sound(dynamic_sound ,sampleRate=sampling_rate)
-            dynamic_sound.play(loops=10)
-            checkPointX = pos_x_obj[frameN+10]
-            win.setColor([-1, 1, -1])
-            noise_obj[int(randint(0,noiseQuantity))].color=(-1, 1, -1)
-            blob_obj.color=(-1, 1, -1)
-            
 
-        # if horizontal_right > 0:
-        #     right _audio.play()
-        #     win.colorSpace = 'rgb'  # this line may not be necessary if your colorSpace is already 'rgb'
-        #     win.setColor([1, -1, -1])  # set the color to red
-        #     noise_obj[int(randint(0,noiseQuantity))].color=(1, -1, -1)
-        #     blob_obj.color=(1, -1, -1)
-
-        # else:
-        #     left_audio.play()
-        #     win.colorSpace = 'rgb'  # this line may not be necessary if your colorSpace is already 'rgb'
-        #      # set the color to green
-        #     win.setColor([-1, 1, -1])
-        #     noise_obj[int(randint(0,noiseQuantity))].color=(-1, 1, -1)
-        #     blob_obj.color=(-1, 1, -1)
-        
         # draw the stimulus
         obs_pointer.setPos(mouse.getPos())
-        noise_obj[int(randint(0,noiseQuantity))].draw()    # draw noise
+        noise_obj[random_noise_index].draw()    # draw noise
         blob_obj.setPos((pos_x_obj[frameN], pos_y_obj[frameN]))
 
    
@@ -378,18 +367,17 @@ for blob_width in conditions:
             endExpNow = True
             continueRoutine = False
             #core.quit()
+    tEnd = globalClock.getTime()
+    print("trial lasteD: "+str(tEnd-tStart))
+    #win.setColor(0.5,0.5,0.5)
     dynamic_sound.stop()
- 
-
     blob_obj.setAutoDraw(False)
     obs_pointer.setAutoDraw(False)
-    
     trialNum+=1
-    tEnd = globalClock.getTime()
-    #print(tEnd-tStart)
+
     t = routineTimer.getTime()
-    #print(t)
-    #print(frameN)
+    print(t)
+    print(frameN)
 
     # save positions of target, mouse, and but first calculate velocities
     response_x = np.array(response_x)
