@@ -43,6 +43,7 @@ def create_stereo_sound(duration, sample_rate, beep_frequency,channel='left'):
     stereo_array = np.column_stack((left_channel, right_channel))
     return stereo_array
 
+
 def generate_white_noise(duration, sample_rate):
     return np.random.normal(0, 1, int(duration * sample_rate))
 
@@ -51,34 +52,41 @@ def generate_a_note(duration, sample_rate):
     t = np.arange(0, duration, 1.0 / sample_rate)
     a_note = np.sin(2.0 * np.pi * frequency * t)
     return a_note
-def positional_audio(duration, sample_rate, beep_frequency,relative_pos_x,relative_pos_y=0.5):
+
+
+def positional_audio(duration, sample_rate, relPosX,relPosY=0.5):
+    #sample_rate=sample_rate*((relPosY+0.5)*2)
     t=np.arange(0, duration, 1.0 / sample_rate)
-    sound=relative_pos_y*generate_a_note(duration, sample_rate)
-    if relative_pos_x<0:
-        left_channel = (abs(relative_pos_x)+0.5) * sound
-        right_channel = (0.5-abs(relative_pos_x)) * sound
-    elif relative_pos_x>=0:
-        left_channel = (0.5-abs(relative_pos_x)) * sound
-        right_channel = (abs(relative_pos_x)+0.5) * sound
+    #sound=generate_white_noise(duration, sample_rate)
+    # Generate a note with frequency based on relPosY
+    frequency = 440 * (2 ** relPosY)  # Frequency of A4 multiplied by an octave shift
+    sound = np.sin(2.0 * np.pi * frequency * t)
+    
+    if relPosX<0:
+        left_channel = (abs(relPosX)+0.5) * sound
+        right_channel = (0.5-abs(relPosX)) * sound
+    elif relPosX>=0:
+        left_channel = (0.5-abs(relPosX)) * sound
+        right_channel = (abs(relPosX)+0.5) * sound
     stereo_array = np.column_stack((left_channel, right_channel))
     return stereo_array
 
 
-def play_audio(array, sample_rate):
-    sd.play(array, samplerate=sample_rate)
-    sd.wait()
+# def play_audio(array, sample_rate):
+#     sd.play(array, samplerate=sample_rate)
+#     sd.wait()
 
 
-import sounddevice as sd
+# import sounddevice as sd
 
-if __name__ == "__main__":
-    duration = 2 # seconds
-    sample_rate = 44100  # Hz
-    beep_frequency = 440  # Hz
+# if __name__ == "__main__":
+#     duration = 2 # seconds
+#     sample_rate = 44100  # Hz
+#     beep_frequency = 440  # Hz
 
-    stereo_array = positional_audio(duration, sample_rate, beep_frequency,-0.5)
+#     stereo_array = positional_audio(duration, sample_rate,-0.5)
 
-    play_audio(stereo_array, sample_rate)
+#     play_audio(stereo_array, sample_rate)
 
 # # save audio
 # import soundfile as sf

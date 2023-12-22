@@ -24,8 +24,13 @@ import sys  # to get file system encoding
 from create_conditions import condition_creater
 from psychopy import prefs
 from audio_cue import create_stereo_sound, positional_audio
+#from psychopy import microphone
+from psychopy import visual, core, event
 
-#prefs.hardware['audioLib'] = ['PTB']
+#from psychopy.sound import Sound
+
+
+prefs.hardware['audioLib'] = ['pygame']
 """          Experiment INFO Setup"""
 
 # Store info about the experiment session
@@ -54,7 +59,7 @@ conditions= condition_creater()
 #conditions=np.load('conditions.npy')
 # Create PsychoPy window covering the whole screen
 sizeIs=512
-win = visual.Window(size=(sizeIs,sizeIs), fullscr=False, monitor='testMonitor', units='pix', color=[0, 0, 0], useFBO=True,screen=0,colorSpace='rgb')
+win = visual.Window(size=(sizeIs,sizeIs), fullscr=False, monitor='testMonitor', units='pix', color=[0, 0, 0], useFBO=True,screen=1,colorSpace='rgb')
 field_size=[sizeIs,sizeIs]
 
 frameRate=win.getActualFrameRate()
@@ -82,6 +87,8 @@ mouse = event.Mouse(win=win,visible=False)
 #     dva= arcmin/60
 #     return(monitorunittools.deg2pix(degrees=dva,monitor=win.monitor))
 frameTolerance = 0.001  # how close to onset before 'same' frame
+
+
 
 ########################################################################################################################
 """                     NOISE BACKGROUND           """
@@ -118,20 +125,17 @@ class NoiseGenerator:
             noise_objects[-1].draw()  # draw noise
         return noise_objects
     
-
 ########################################################################################################################
 """ AUDIO CUES"""
 # Create audio cues
 sampling_rate=44100
-audioDur=0.32 # in seconds
-left_aud_cue=create_stereo_sound(duration=audioDur # in seconds
-, sample_rate=sampling_rate, beep_frequency=440,channel='left')
-right_aud_cue=create_stereo_sound(duration=audioDur # in seconds
-, sample_rate=sampling_rate, beep_frequency=440,channel='right')
-dynamic_sound= positional_audio(duration=audioDur, sample_rate=sampling_rate, relative_pos_x=0)
+audioDur=0.08 # in seconds
+#left_aud_cue=create_stereo_sound(duration=audioDur # in seconds, sample_rate=sampling_rate, beep_frequency=440,channel='left')
+#right_aud_cue=create_stereo_sound(duration=audioDur # in seconds, sample_rate=sampling_rate, beep_frequency=440,channel='right')
+dynamic_sound= positional_audio(duration=audioDur, sample_rate=sampling_rate, relPosX=0)
 # Create audio object
-left_audio=sound.Sound(left_aud_cue,sampleRate=sampling_rate)
-right_audio=sound.Sound(right_aud_cue ,sampleRate=sampling_rate)
+#left_audio=sound.Sound(left_aud_cue,sampleRate=sampling_rate)
+#right_audio=sound.Sound(right_aud_cue ,sampleRate=sampling_rate)
 dynamic_sound=sound.Sound(dynamic_sound ,sampleRate=sampling_rate)
 ########################################################################################################################
 
@@ -164,8 +168,7 @@ event.waitKeys()
 win.flip()
 
 # Brownian motion properties
-#velocity_std = 1.0  # Standard deviation of Gaussian white noise velocities
-blob_motion_std=2#arcmin_to_px(arcmin=1.32,h=screen_height,d=screen_distance,r=field_size[0])
+blob_motion_std=2#arcmin_to_px(arcmin=1.32,h=screen_height,d=screen_distance,r=field_size[0])  # Standard deviation of Gaussian white noise velocities
 # Create some handy timers
 globalClock = core.Clock()  # to track the time since experiment started
 routineTimer = core.Clock()  # to track time remaining of each (possibly non-slip) routine 
@@ -209,6 +212,15 @@ def generateBrownianMotion(field_size, velocity_std, duration):
     num_frames = int(duration * expectedFrameRate)-1
     velocies_x=np.random.normal(0, velocity_std, num_frames)
     velocies_y=np.random.normal(0, velocity_std, num_frames)
+    
+    ## Create UP DOWN motion Calculate the number of frames for each motion
+    # up_frames = num_frames // 3
+    # down_frames = num_frames - up_frames
+    # # Create arrays for each motion
+    # up_motion = np.ones(up_frames)
+    # down_motion = -np.ones(down_frames)
+    # velocies_y=np.concatenate((up_motion, down_motion))
+
     # new positions = old position + velocity
     pos_x = np.cumsum(velocies_x)
     pos_y = np.cumsum(velocies_y)
@@ -311,7 +323,15 @@ for blob_width in conditions:
     mouse_v=np.empty((expectedFrames))
     checkPointX=0
     checkPointY=0
-    curColor=[1, -1, -1]
+
+    # Define the colors two shades of green
+    green_light = np.array([0.5, 1, 0.5])  # Light green
+    green_dark = np.array([0, 0.5, 0])  # Dark green
+    red = np.array([1, 0, 0])  # Red
+    green = np.array([0, 1, 0])  # Green
+    curColor=[1, 1, 1]
+
+    # Initiate audio cue
     dynamic_sound.play()
     tStart = globalClock.getTime()
     ##################### Trial Start #####################
@@ -322,37 +342,39 @@ for blob_width in conditions:
         #tThisFlipGlobal = win.getFutureFlipTime(clock=None)
         frameN+= 1  # number of completed frames (so 0 is the first frame)
         # Play audio cue based on position change
-        delta_x = pos_x_obj[frameN] - checkPointX # change in position after 10 frames
-        delta_y = pos_y_obj[frameN] - checkPointY # 
-        nAheadFrames=5
+        nAheadFrames=1
         if frameN+nAheadFrames<expectedFrames-1:
+            delta_x = pos_x_obj[frameN+nAheadFrames] - checkPointX # change in position after 10 frames
+            delta_y = pos_y_obj[frameN+nAheadFrames] - checkPointY # 
             relative_pos_x=pos_x_obj[frameN+nAheadFrames]/(field_size[0]/2)
             relative_pos_y=pos_y_obj[frameN+nAheadFrames]/(field_size[1]/2)
-            if delta_x > 5:
+            if delta_x > 0.02:
                 #dynamic_sound.stop()
-                dynamic_sound= positional_audio(duration=audioDur, sample_rate=sampling_rate, relative_pos_x=relative_pos_x)
+                dynamic_sound= positional_audio(duration=audioDur, sample_rate=sampling_rate, relPosX=relative_pos_x,relPosY=relative_pos_y)
                 dynamic_sound=sound.Sound(dynamic_sound ,sampleRate=sampling_rate)
-                dynamic_sound.play(loops=2)
+                dynamic_sound.play()
                 checkPointX = pos_x_obj[frameN+nAheadFrames]
-                curColor=[1, -1, -1]
-            elif delta_x < -5:
+                #curColor=[1, -1, -1]
+            elif delta_x < -0.02:
                 #dynamic_sound.stop()
-                dynamic_sound= positional_audio(duration=audioDur, sample_rate=sampling_rate, relative_pos_x=relative_pos_x)
+                dynamic_sound= positional_audio(duration=audioDur, sample_rate=sampling_rate, relPosX=relative_pos_x,relPosY=relative_pos_y)
                 dynamic_sound=sound.Sound(dynamic_sound ,sampleRate=sampling_rate)
-                dynamic_sound.play(loops=2)
+                dynamic_sound.play()
                 checkPointX = pos_x_obj[frameN+nAheadFrames]
                 #curColor=[-1, 1, -1]
-        #noise_obj[random_noise_index].color=curColor
-        #blob_obj.color=curColor
+        # Normalize relative_pos_x to the range [0, 1]
+        # relative_pos_x_normalized = relative_pos_x+0.5
+        # relative_pos_x_normalized = relative_pos_x_normalized*2
+        # # Interpolate between the two shades of green based on relative_pos_x
+        # curColor = green_light * relative_pos_x_normalized + green_dark * (1 - relative_pos_x_normalized)
+        # noise_obj[random_noise_index].color=curColor
+        # blob_obj.color=curColor
         #win.setColor(curColor)    
-
 
         # draw the stimulus
         obs_pointer.setPos(mouse.getPos())
         noise_obj[random_noise_index].draw()    # draw noise
         blob_obj.setPos((pos_x_obj[frameN], pos_y_obj[frameN]))
-
-   
 
         #save mouse position
         response_x[frameN]=obs_pointer.pos[0]
@@ -374,8 +396,10 @@ for blob_width in conditions:
     blob_obj.setAutoDraw(False)
     obs_pointer.setAutoDraw(False)
     trialNum+=1
+    
 
     t = routineTimer.getTime()
+    
     print(t)
     print(frameN)
 
