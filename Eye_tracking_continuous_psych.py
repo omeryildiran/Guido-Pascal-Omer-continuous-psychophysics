@@ -7,15 +7,14 @@
 
 from psychopy import visual, core, event
 import numpy as np
-import psychopy.iohub as io
-from psychopy.hardware import keyboard
 import matplotlib.pyplot as plt
 from PIL import Image
 import os
 from dva_to_pix import arcmin_to_px, dva_to_px
 from numpy.random import choice as randchoice
 from numpy.random import random, randint, normal, shuffle, choice as randchoice
-from psychopy import sound, gui, visual, core, data, event, logging, clock, colors, layout
+from psychopy import sound, gui, visual, core, data, event, logging, clock, colors, layout, iohub, hardware
+
 from psychopy.constants import (NOT_STARTED, STARTED, PLAYING, PAUSED,
                                 STOPPED, FINISHED, PRESSED, RELEASED, FOREVER)
 from psychopy.tools import monitorunittools
@@ -27,8 +26,11 @@ from audio_cue import create_stereo_sound, positional_audio
 #from psychopy import microphone
 from psychopy import visual, core, event
 #from psychopy.sound import Sound
-
 prefs.hardware['audioLib'] = ['pygame']
+from psychopy.hardware import keyboard
+import psychopy.iohub as io
+
+
 """          Experiment INFO Setup"""
 
 # Store info about the experiment session
@@ -56,8 +58,13 @@ conditions= condition_creater()
 # import conditions.npy
 #conditions=np.load('conditions.npy')
 # Create PsychoPy window covering the whole screen
-sizeIs=512
-win = visual.Window(size=(sizeIs,sizeIs), fullscr=False, monitor='testMonitor', units='pix', color=[0, 0, 0], useFBO=True,screen=1,colorSpace='rgb')
+sizeIs=1024
+win = visual.Window(size=(sizeIs,sizeIs), fullscr=True, monitor='testMonitor', 
+                    units='pix', 
+                    color=[0, 0, 0],
+                      useFBO=True,
+                      screen=1,
+                      colorSpace='rgb')
 field_size=[sizeIs,sizeIs]
 
 frameRate=win.getActualFrameRate()
@@ -67,10 +74,8 @@ if expInfo['frameRate'] != None:
     frameDur = 1.0 / round(expInfo['frameRate'])
 else:
     frameDur = 1.0 / 60.0  # could not measure, so guess
-defaultKeyboard = keyboard.Keyboard(backend='iohub')
 space2pass=keyboard.Keyboard()
 endExpNow = False  # flag for 'escape' or other condition => quit the exp
-
 #setup screen properties
 screen_width=22 # actual size of my screen in cm is 28x17
 screen_height=17
@@ -87,9 +92,48 @@ mouse = event.Mouse(win=win,visible=False)
 frameTolerance = 0.001  # how close to onset before 'same' frame
 
 
+# --- Setup input devices ---
+ioConfig = {}
+
+# Setup eyetracking
+ioConfig['eyetracker.hw.sr_research.eyelink.EyeTracker'] = {
+    'name': 'tracker',
+    'model_name': 'EYELINK 1000 DESKTOP',
+    'simulation_mode': False,
+    'network_settings': '100.1.1.1',
+    'default_native_data_file_name': 'EXPFILE',
+    'runtime_settings': {
+        'sampling_rate': 1000.0,
+        'track_eyes': 'BOTH',
+        'sample_filtering': {
+            'sample_filtering': 'FILTER_LEVEL_2',
+            'elLiveFiltering': 'FILTER_LEVEL_OFF',
+        },
+        'vog_settings': {
+            'pupil_measure_types': 'PUPIL_AREA',
+            'tracking_mode': 'PUPIL_CR_TRACKING',
+            'pupil_center_algorithm': 'ELLIPSE_FIT',
+        }
+    }
+}
+
+# Setup iohub keyboard
+ioConfig['Keyboard'] = dict(use_keymap='psychopy')
+
+ioSession = '1'
+if 'session' in expInfo:
+    ioSession = str(expInfo['session'])
+
+ioServer = io.launchHubServer(window=win, **ioConfig)
+eyetracker = ioServer.getDevice('tracker')
+
+# create a default keyboard (e.g. to check for escape)
+defaultKeyboard = keyboard.Keyboard(backend='iohub')
+
 
 ########################################################################################################################
-"""                     NOISE BACKGROUND           """
+### -------Initialize componens  for target tracking trial-------------------------
+"""                 NOISE BACKGROUND           """
 # Background noise
 # Noise properties
 noise_size = field_size  # Use the window size for noise texture
@@ -123,7 +167,62 @@ class NoiseGenerator:
             noise_objects[-1].draw()  # draw noise
         return noise_objects
 
+
 ########################################################################################################################
+### --- Initiate Calibration ---
+# Create some handy timers
+globalClock = core.Clock()  # to track the time since experiment started
+routineTimer = core.Clock()  # to track time remaining of each (possibly non-slip) routine 
+# define target for calibration
+# define parameters for calibration
+calibrationTarget = visual.TargetStim(win, 
+    name='calibrationTarget',
+    radius=0.01, fillColor='', borderColor='black', lineWidth=2.0,
+    innerRadius=0.0035, innerFillColor='green', innerBorderColor='black', innerLineWidth=2.0,
+    colorSpace='rgb', units='height'
+)
+
+# define parameters for calibration
+calibration = hardware.eyetracker.EyetrackerCalibration(win, 
+    eyetracker, calibrationTarget,
+    units=None, colorSpace='rgb',
+    progressMode='time', targetDur=1.5, expandScale=1.5,
+    targetLayout='NINE_POINTS', randomisePos=True, textColor='white',
+    movementAnimation=True, targetDelay=1.0
+)
+# run calibration
+calibration.run()
+# clear any keypresses from during calibration so they don't interfere with the experiment
+defaultKeyboard.clearEvents()
+# the Routine "calibration" was not non-slip safe, so reset the non-slip timer
+routineTimer.reset()
+# define target for validation
+validationTarget = visual.TargetStim(win, 
+    name='validationTarget',
+    radius=5, fillColor='', borderColor='black', lineWidth=2.0,
+    innerRadius=2.5, innerFillColor='green', innerBorderColor='black', innerLineWidth=2.0,
+    colorSpace='rgb', units=None
+)
+# define parameters for validation
+validation = iohub.ValidationProcedure(win,
+    target=validationTarget,
+    gaze_cursor='green', 
+    positions='NINE_POINTS', randomize_positions=True,
+    expand_scale=1.5, target_duration=1.5,
+    enable_position_animation=True, target_delay=1.0,
+    progress_on_key=None, text_color='auto',
+    show_results_screen=True, save_results_screen=False,
+    color_space='rgb', unit_type=None
+)
+# run validation
+validation.run()
+# clear any keypresses from during validation so they don't interfere with the experiment
+defaultKeyboard.clearEvents()
+# the Routine "validation" was not non-slip safe, so reset the non-slip timer
+routineTimer.reset()
+
+### --- Calibration and Validation Finished ---
+
 
 
 """             Welcome screen to give instructions to the participant         """
@@ -174,6 +273,8 @@ def generateBlob(space_constant):
 # create blobs for each of the conditions
 blob_widths=[11,13,17,21,25,29]
 blobs=[]
+
+
 for blob_width in blob_widths:
     blobs.append(np.array(generateBlob(arcmin_to_px(arcmin=blob_width,h=screen_height,d=screen_distance,r=field_size[0]))))
 blobs=np.array(blobs)
@@ -186,7 +287,7 @@ for i in range(len(blob_widths)):
 
 magicNumber=600
 expectedFrameRate=60
-expectedDuration=1 # in seconds
+expectedDuration=10 # in seconds
 expectedFrames=expectedFrameRate*expectedDuration
 
 """                         BLOB MOTION                """ 
@@ -238,7 +339,7 @@ haveRestNum=1
 #####
 sigma_trials=[]
 win.setMouseVisible(False)        
-for blob_width in conditions:
+for blob_width in conditions[:3]:
     sigma_trials.append(blob_width)
     _space2pass_allKeys = []
     space2pass.keys = []
@@ -315,6 +416,7 @@ for blob_width in conditions:
 
     tStart = globalClock.getTime()
     ##################### Trial Start #####################
+    eyetracker.setRecordingState(True)  # start recording of gaze
     while continueRoutine:
         random_noise_index = int(randint(0, noiseQuantity))
         # t = routineTimer.getTime()
@@ -324,7 +426,11 @@ for blob_width in conditions:
 
 
         # draw the stimulus
-        obs_pointer.setPos(mouse.getPos())
+        #obs_pointer.setPos(mouse.getPos())
+        if eyetracker.getPosition() is not None:
+            obs_pointer.setPos(eyetracker.getPosition())
+        else:
+            obs_pointer.setPos(mouse.getPos())
         noise_obj[random_noise_index].draw()    # draw noise
         blob_obj.setPos((pos_x_obj[frameN], pos_y_obj[frameN]))
 
@@ -340,8 +446,10 @@ for blob_width in conditions:
         if endExpNow or defaultKeyboard.getKeys(keyList=["escape"]):
             endExpNow = True
             continueRoutine = False
+            if eyetracker:
+                eyetracker.setConnectionState(False)
             #core.quit()
-        
+    eyetracker.setRecordingState(False)  # stop recording of gaze
     tEnd = globalClock.getTime()
     print("trial lasteD: "+str(tEnd-tStart))
     blob_obj.setAutoDraw(False)
@@ -387,85 +495,3 @@ conditions=conditions.T
 filename = u'data/%s_%s_%s' % (expInfo['participant'], expName, expInfo['date'])
 sio.savemat(filename+'.mat', {'mouse_x': all_mouse_x, 'mouse_y': all_mouse_y, 'response': all_mouse_v, 'blob_x': all_blob_x, 'blob_y': all_blob_y, 'target': all_blob_v, 'sigma': sigma_trials})
 core.quit()
-
-
-
-# ################################# Plotting #############################################################################
-
-# # save intensity profiles based on final_stims array
-# intensity_profiles = []  # List to store intensity profiles
-# for frameN,frame in enumerate(final_stims):
-#     #stim_array = np.array(frame.tex)
-#     intensity_profile = frame.tex[noise_size[1]//2,:]
-#     normalized_profile = (intensity_profile - intensity_profile.min()) / (intensity_profile.max() - intensity_profile.min())
-#     intensity_profiles.append(normalized_profile)
-
-# # function to plot the intensity profile for each frame
-# def plot_intensity_profile(intensity_profiles, frameN):
-#     plt.figure()
-#     plt.plot(intensity_profiles)
-#     plt.xlabel("Horizontal Position (pixels)")
-#     plt.ylabel("Intensity")
-#     plt.title("Cross-Sections of Intensity"+ "  Frame: " + str(frameN))
-#     plt.show()
-
-# # plot intensity profile for each frame
-# def each_frame_intensities(blob_width, intensity_profiles, plot_intensity_profile):
-#     for frameN in range(len(intensity_profiles)):
-#         plot_intensity_profile(intensity_profiles[frameN], frameN)
-#         #plt.pause(0.0001)
-#         if frameN == 0:
-#             plt.savefig('recorded/intensity_profile_'+str(blob_width)+'.png')
-
-# #each_frame_intensities(blob_width, intensity_profiles[0:10], plot_intensity_profile)
-
-
-
-# # Plot intensity profiles
-# def intensities_normalized(noise_size, blob_width, intensity_profiles):
-#     plt.figure(figsize=(8, 6))
-
-#     for profile in intensity_profiles:
-#         normalized_profile = (profile - profile.min()) / (profile.max() - profile.min())
-#         plt.plot(normalized_profile)
-# # x label in degrees of visual angle
-#     plt.xticks(np.arange(0, noise_size[0], 100), np.arange(-5, 6, 1))
-#     plt.xlabel("Horizontal Position (degrees)")
-#     plt.ylabel("Normalized Intensity")
-#     plt.title("Cross-Sections of Normalized Intensity")
-#     plt.ylim(0, 1)
-# # legend for each frame
-#     plt.legend(np.arange(len(intensity_profiles)))
-#     plt.savefig('recorded/intensity_profiles_'+str(blob_width)+'.png')
-#     plt.show()
-
-
-# # intensities_normalized(noise_size, blob_width, intensity_profiles)
-
-# # plot intensity profiles mean
-# def mean_profile(intensity_profiles):
-#     mean_profile = np.mean(intensity_profiles, axis=0)
-#     normalized_mean_profile = (mean_profile - mean_profile.min()) / (mean_profile.max() - mean_profile.min())
-#     return normalized_mean_profile
-
-# # function to plot intensity profiles
-# def plot_intensity_profiles(intensity_profiles):
-#     normalized_mean_profile = mean_profile(intensity_profiles)
-#     plt.figure(figsize=(8, 6))
-#     # x label in degrees of visual angle
-#     plt.xticks(np.arange(0, noise_size[0], 100), np.arange(-5, 6, 1))
-#     plt.xlabel("Horizontal Position (degrees)")
-#     plt.ylabel("Normalized Intensity")
-#     plt.title("Cross-Sections of Normalized Intensity")
-#     plt.ylim(0, 1)
-#     # legend for each frame
-#     plt.legend(np.arange(len(intensity_profiles)))
-#     plt.savefig('recorded/intensity_profiles_'+str(blob_width)+'.png')
-#     plt.show()
-
-# # save intensity profiles as csv
-# np.savetxt("recorded/intensity_profiles.csv", intensity_profiles, delimiter=",")
-# # save intensity profiles as numpy array
-# np.save("recorded/intensity_profiles.npy", intensity_profiles)
-# # save mean intensity profile as numpy array
-# np.save("recorded/mean_intensity_profile.npy", mean_profile)

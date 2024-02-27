@@ -26,11 +26,20 @@ from psychopy import prefs
 from audio_cue import create_stereo_sound, positional_audio
 #from psychopy import microphone
 from psychopy import visual, core, event
+
 #from psychopy.sound import Sound
 
+### Start eye tracker mouse
+from psychopy.iohub import launchHubServer
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"""                  PSYCHOPY EXPERIMENT SETUP                          """
+""
+
+#########################################################################
 prefs.hardware['audioLib'] = ['pygame']
 """          Experiment INFO Setup"""
-
 # Store info about the experiment session
 psychopyVersion = '2022.2.4'
 expName = 'continous_psych'  # from the Builder filename that created this script
@@ -52,13 +61,20 @@ os.chdir(_thisDir)
 # Data file name stem = absolute path + name; later add .psyexp, .csv, .log, etc
 filename = _thisDir + os.sep + u'data/%s_%s_%s' % (expInfo['participant'], expName, expInfo['date'])
 
-conditions= condition_creater()
-# import conditions.npy
-#conditions=np.load('conditions.npy')
 # Create PsychoPy window covering the whole screen
+frameTolerance = 0.001  # how close to onset before 'same' frame
 sizeIs=512
+
 win = visual.Window(size=(sizeIs,sizeIs), fullscr=False, monitor='testMonitor', units='pix', color=[0, 0, 0], useFBO=True,screen=1,colorSpace='rgb')
 field_size=[sizeIs,sizeIs]
+#setup screen properties
+screen_width=22 # actual size of my screen in cm is 28x17
+screen_height=17
+screen_distance=57
+### Set the monitor to the correct distance and size
+#win.monitor.setSizePix(field_size)
+win.monitor.setWidth(screen_width)
+win.monitor.setDistance(screen_distance)
 
 frameRate=win.getActualFrameRate()
 print(frameRate)
@@ -71,23 +87,41 @@ defaultKeyboard = keyboard.Keyboard(backend='iohub')
 space2pass=keyboard.Keyboard()
 endExpNow = False  # flag for 'escape' or other condition => quit the exp
 
-#setup screen properties
-screen_width=22 # actual size of my screen in cm is 28x17
-screen_height=17
-screen_distance=57
-### Set the monitor to the correct distance and size
-#win.monitor.setSizePix(field_size)
-win.monitor.setWidth(screen_width)
-win.monitor.setDistance(screen_distance)
+
 mouse = event.Mouse(win=win,visible=False)
-# TODO: arcmin to px conversion but open it later
-# def arcmin_to_px(arcmin=1,h=19,d=57,r=1080):
-#     dva= arcmin/60
-#     return(monitorunittools.deg2pix(degrees=dva,monitor=win.monitor))
-frameTolerance = 0.001  # how close to onset before 'same' frame
+
+
+""" Inititalize eye tracker """
+# --- Setup input devices ---
+ioConfig = {}
+
+# Setup eyetracking
+ioConfig['eyetracker.hw.mouse.EyeTracker'] = {
+    'name': 'tracker',
+    'controls': {
+        'move': [],
+        'blink':('MIDDLE_BUTTON',),
+        'saccade_threshold': 0.5,
+    }
+}
+
+# Setup iohub keyboard
+ioConfig['Keyboard'] = dict(use_keymap='psychopy')
+ioServer = io.launchHubServer(window=win, **ioConfig)
+
+tracker = ioServer.getDevice('tracker')
+
+# # Initialize camera
+# cap = cv2.VideoCapture(0)  # 0 is usually the built-in webcam
 
 
 
+
+
+
+conditions= condition_creater()
+# import conditions.npy
+#conditions=np.load('conditions.npy')
 ########################################################################################################################
 """                     NOISE BACKGROUND           """
 # Background noise
@@ -186,7 +220,7 @@ for i in range(len(blob_widths)):
 
 magicNumber=600
 expectedFrameRate=60
-expectedDuration=1 # in seconds
+expectedDuration=20 # in seconds
 expectedFrames=expectedFrameRate*expectedDuration
 
 """                         BLOB MOTION                """ 
@@ -237,7 +271,9 @@ haveRestText=visual.TextStim(win, text='Press space to continue', color=[1, 1, 1
 haveRestNum=1
 #####
 sigma_trials=[]
-win.setMouseVisible(False)        
+win.setMouseVisible(False)      
+# Check for and print any eye tracker events received...
+tracker.setRecordingState(True)  
 for blob_width in conditions:
     sigma_trials.append(blob_width)
     _space2pass_allKeys = []
@@ -270,6 +306,7 @@ for blob_width in conditions:
 
     mouse.y=[]
     mouse.x=[]
+
     # create magicNumber frames of stimuli
     # create blob motion positions
     pos_x_obj, pos_y_obj = generateBrownianMotion(field_size=noise_size[0], velocity_std=blob_motion_std, duration=expectedDuration)# pre-generate brownian motion
@@ -314,6 +351,8 @@ for blob_width in conditions:
     curColor=[1, 1, 1]
 
     tStart = globalClock.getTime()
+    """ TRIAL STARTS HERE """
+    """ This is where trial starts"""
     ##################### Trial Start #####################
     while continueRoutine:
         random_noise_index = int(randint(0, noiseQuantity))
@@ -327,7 +366,9 @@ for blob_width in conditions:
         obs_pointer.setPos(mouse.getPos())
         noise_obj[random_noise_index].draw()    # draw noise
         blob_obj.setPos((pos_x_obj[frameN], pos_y_obj[frameN]))
-
+        # Eye tracker recording
+        print(tracker.getPosition())
+    
         #save mouse position
         response_x[frameN]=obs_pointer.pos[0]
         response_y[frameN]=obs_pointer.pos[1]
@@ -341,7 +382,9 @@ for blob_width in conditions:
             endExpNow = True
             continueRoutine = False
             #core.quit()
-        
+
+    """ TRIAL ENDS HERE """
+
     tEnd = globalClock.getTime()
     print("trial lasteD: "+str(tEnd-tStart))
     blob_obj.setAutoDraw(False)
