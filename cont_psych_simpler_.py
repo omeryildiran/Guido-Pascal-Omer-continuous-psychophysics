@@ -21,7 +21,7 @@ from psychopy.constants import (NOT_STARTED, STARTED, PLAYING, PAUSED,
 from psychopy.tools import monitorunittools
 import sys  # to get file system encoding
 
-from create_conditions import condition_creater
+from create_conditions import condition_creater, create_conditions
 from psychopy import prefs
 from audio_cue import create_stereo_sound, positional_audio
 #from psychopy import microphone
@@ -52,9 +52,7 @@ os.chdir(_thisDir)
 # Data file name stem = absolute path + name; later add .psyexp, .csv, .log, etc
 filename = _thisDir + os.sep + u'data/%s_%s_%s' % (expInfo['participant'], expName, expInfo['date'])
 
-conditions= condition_creater()
-# import conditions.npy
-#conditions=np.load('conditions.npy')
+conditions= create_conditions(blob_widths=[11,13,17,21,25,29], repeats=5, numOfBlocks=1)
 # Create PsychoPy window covering the whole screen
 sizeIs=512
 win = visual.Window(size=(sizeIs,sizeIs), fullscr=False, monitor='testMonitor', units='pix', color=[0, 0, 0], useFBO=True,screen=1,colorSpace='rgb')
@@ -76,14 +74,9 @@ screen_width=22 # actual size of my screen in cm is 28x17
 screen_height=17
 screen_distance=57
 ### Set the monitor to the correct distance and size
-#win.monitor.setSizePix(field_size)
 win.monitor.setWidth(screen_width)
 win.monitor.setDistance(screen_distance)
 mouse = event.Mouse(win=win,visible=False)
-# TODO: arcmin to px conversion but open it later
-# def arcmin_to_px(arcmin=1,h=19,d=57,r=1080):
-#     dva= arcmin/60
-#     return(monitorunittools.deg2pix(degrees=dva,monitor=win.monitor))
 frameTolerance = 0.001  # how close to onset before 'same' frame
 
 
@@ -97,7 +90,7 @@ noise_arcmin = 11  # Standard deviation for pixel noise || noise intensity Adjus
 noise_std =arcmin_to_px(noise_arcmin,h=screen_height,d=screen_distance,r=field_size[0])# convert arcmin to std for Gaussian
 noiseQuantity=120
 class NoiseGenerator:
-    def __init__(self, noise_size, noise_intensity=1, noise_quantity=120):
+    def __init__(self, noise_size, noise_intensity=1, noise_quantity=noiseQuantity):
         self.noise_size = noise_size
         self.noise_intensity = noise_intensity
         self.noise_quantity = noise_quantity
@@ -106,7 +99,7 @@ class NoiseGenerator:
     def gauss_noise(self):
         noise = np.random.normal(0, self.noise_intensity, size=self.noise_size)
         return noise
-
+    
     def _generate_noises(self):
         noise_instances = np.empty((self.noise_quantity, self.noise_size[0], self.noise_size[1]))
         for i in range(self.noise_quantity):
@@ -115,14 +108,13 @@ class NoiseGenerator:
         noise_instances = np.clip(noise_instances, -3, 3)
         noise_instances = (noise_instances - noise_instances.min()) / (noise_instances.max() - noise_instances.min()) * 2 - 1
         return noise_instances
-
     def create_visual_objects(self, win):
         noise_objects = []
         for i in range(self.noise_quantity):
             noise_objects.append(visual.GratingStim(win, tex=self.noise_instances[i], size=self.noise_size, interpolate=False, units='pix'))
             noise_objects[-1].draw()  # draw noise
         return noise_objects
-
+    
 ########################################################################################################################
 
 
@@ -138,6 +130,7 @@ You will be asked to follow the blob with your mouse
 welcomeText = visual.TextStim(win, text=welcomeText,
                               color=[1, 1, 1], units='pix', height=20)
 welcomeText.draw()
+# noise generation
 win.flip()
 noise_gen = NoiseGenerator(noise_size)
 noise_obj = noise_gen.create_visual_objects(win)# Generate and draw noise objects
@@ -186,14 +179,14 @@ for i in range(len(blob_widths)):
 
 magicNumber=600
 expectedFrameRate=60
-expectedDuration=1 # in seconds
+expectedDuration=10 # in seconds
 expectedFrames=expectedFrameRate*expectedDuration
 
 """                         BLOB MOTION                """ 
 # Blob motion by changing velocity on x and y axis according to the brownian motion
 def generateBrownianMotion(field_size, velocity_std, duration):
     # Generate random velocity for each frame
-    num_frames = int(duration * expectedFrameRate)-1
+    num_frames = int(duration * expectedFrameRate)+600# or -1
     velocies_x=np.random.normal(0, velocity_std, num_frames)
     velocies_y=np.random.normal(0, velocity_std, num_frames)
     
@@ -204,7 +197,6 @@ def generateBrownianMotion(field_size, velocity_std, duration):
     # up_motion = np.ones(up_frames)
     # down_motion = -np.ones(down_frames)
     # velocies_y=np.concatenate((up_motion, down_motion))
-
     # new positions = old position + velocity
     pos_x = np.cumsum(velocies_x)
     pos_y = np.cumsum(velocies_y)
@@ -213,8 +205,9 @@ def generateBrownianMotion(field_size, velocity_std, duration):
     pos_y = np.clip(pos_y, -field_size/2, field_size/2 )
     return (pos_x, pos_y)
     
+print(dva_to_px(size_in_deg=1,h=screen_height,d=screen_distance,r=field_size[0]))
 ##            OBSERVER POINTER             """
-obs_pointer = visual.Circle(win, radius=10, fillColor='red',colorSpace='rgb', units='pix',size=0.30)
+obs_pointer = visual.Circle(win, radius=dva_to_px(1), fillColor='red',colorSpace='rgb', units='pix',size=0.30)
 ##    fixation cross for the beginning of the trial (before start of the trial )  
 fixationCross=visual.TextStim(win, text='+', color=[1, 1, 1], units='pix', height=20)
 
@@ -228,6 +221,11 @@ all_blob_v=[]
 all_mouse_x = []
 all_mouse_y = []
 all_mouse_v=[]
+### stimulus data
+all_stim_x = []
+all_stim_y = []
+all_stim_v=[]
+jumped=False
 
 
 """                  Have a REST SCREEN       """
@@ -237,8 +235,10 @@ haveRestText=visual.TextStim(win, text='Press space to continue', color=[1, 1, 1
 haveRestNum=1
 #####
 sigma_trials=[]
+newConditions=[]
 win.setMouseVisible(False)        
-for blob_width in conditions:
+for blob_width in [11,11,11,11,11]:
+    newConditions.append(blob_width)
     sigma_trials.append(blob_width)
     _space2pass_allKeys = []
     space2pass.keys = []
@@ -288,6 +288,8 @@ for blob_width in conditions:
     continueRoutine = True
     _timeToFirstFrame = win.getFutureFlipTime(clock="now")
     frameN = -1
+    realFrameN=-1
+
     routineTimer.reset()
     t = 0
     # # wait for 1 second before starting the trial
@@ -299,9 +301,12 @@ for blob_width in conditions:
     # draw the stimulus
     blob_obj.setAutoDraw(True)
     obs_pointer.setAutoDraw(True)
+    obs_pointer.setPos((0,0))
     mouse.setVisible(False)  
     response_x=np.empty((expectedFrames))
     response_y=np.empty((expectedFrames))
+    stim_x=np.empty((expectedFrames))
+    stim_y=np.empty((expectedFrames))
     mouse_v=np.empty((expectedFrames))
     checkPointX=0
     checkPointY=0
@@ -316,21 +321,31 @@ for blob_width in conditions:
     tStart = globalClock.getTime()
     ##################### Trial Start #####################
     while continueRoutine:
+        realFrameN+=1
+        mX=mouse.getPos()[0]
+        mY=mouse.getPos()[1]
+        jumped=np.sqrt((mX-obs_pointer.pos[0])**2+(mY-obs_pointer.pos[1])**2)>dva_to_px(size_in_deg=0.5,h=screen_height,d=screen_distance,r=field_size[0])
+        looksAway=(np.sqrt((pos_x_obj[realFrameN-1]-mX)**2+(pos_y_obj[realFrameN-1]-mY)**2))>dva_to_px(size_in_deg=3,h=screen_height,d=screen_distance,r=field_size[0])
+        if jumped or looksAway:
+            pass
+        else:
+            frameN+=1
         random_noise_index = int(randint(0, noiseQuantity))
         # t = routineTimer.getTime()
         #tThisFlip = win.getFutureFlipTime(clock=routineTimer)
         #tThisFlipGlobal = win.getFutureFlipTime(clock=None)
-        frameN+= 1  # number of completed frames (so 0 is the first frame)
-
-
+        # frameN+= 1  # number of completed frames (so 0 is the first frame)
         # draw the stimulus
         obs_pointer.setPos(mouse.getPos())
         noise_obj[random_noise_index].draw()    # draw noise
-        blob_obj.setPos((pos_x_obj[frameN], pos_y_obj[frameN]))
+        blob_obj.setPos((pos_x_obj[realFrameN], pos_y_obj[realFrameN]))
 
         #save mouse position
-        response_x[frameN]=obs_pointer.pos[0]
-        response_y[frameN]=obs_pointer.pos[1]
+        if not jumped or not looksAway:
+            stim_x[frameN]=blob_obj.pos[0]
+            stim_y[frameN]=blob_obj.pos[1]
+            response_x[frameN]=obs_pointer.pos[0]
+            response_y[frameN]=obs_pointer.pos[1]
         # flip the window
         win.flip()
         # end the loop after given seconds
@@ -353,7 +368,7 @@ for blob_width in conditions:
     
     print(t)
     print(frameN)
-
+    print(realFrameN)
     # save positions of target, mouse, and but first calculate velocities
     response_x = np.array(response_x)
     response_y = np.array(response_y)
@@ -362,6 +377,14 @@ for blob_width in conditions:
     all_mouse_x.append(response_x)
     all_mouse_y.append(response_y)
     all_mouse_v.append(mouse_v)
+    stim_x = np.array(stim_x)
+    stim_y = np.array(stim_y)
+    stim_v = np.sqrt(np.diff(stim_x)**2 + np.diff(stim_y)**2)
+    stim_v = np.insert(stim_v, 0, 0)
+    # save mouse velocity
+    all_stim_x.append(stim_x)
+    all_stim_y.append(stim_y)
+    all_stim_v.append(stim_v)
     space2pass.keys = None
 
     if endExpNow or defaultKeyboard.getKeys(keyList=["escape"]):
@@ -383,10 +406,19 @@ win.close()
 #win.close()
 # write mouse positions, velocities, and blob velocities and positions and conditions as a matlab data file
 import scipy.io as sio
-conditions=conditions.T
+newConditions=np.array(newConditions)
+newConditions=newConditions.T
 filename = u'data/%s_%s_%s' % (expInfo['participant'], expName, expInfo['date'])
-sio.savemat(filename+'.mat', {'mouse_x': all_mouse_x, 'mouse_y': all_mouse_y, 'response': all_mouse_v, 'blob_x': all_blob_x, 'blob_y': all_blob_y, 'target': all_blob_v, 'sigma': sigma_trials})
+sio.savemat(filename+'.mat', {'mouse_x': all_mouse_x, 'mouse_y': all_mouse_y, 'response': all_mouse_v, 'blob_x': all_stim_x, 'blob_y': all_stim_y, 'target': all_stim_v, 'sigma': sigma_trials})
 core.quit()
+
+
+
+
+
+
+
+
 
 
 
@@ -395,7 +427,7 @@ core.quit()
 # # save intensity profiles based on final_stims array
 # intensity_profiles = []  # List to store intensity profiles
 # for frameN,frame in enumerate(final_stims):
-#     #stim_array = np.array(frame.tex)
+#     #stim_array = np.array(frame.tex)gee
 #     intensity_profile = frame.tex[noise_size[1]//2,:]
 #     normalized_profile = (intensity_profile - intensity_profile.min()) / (intensity_profile.max() - intensity_profile.min())
 #     intensity_profiles.append(normalized_profile)
