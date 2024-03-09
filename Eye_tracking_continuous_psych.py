@@ -4,6 +4,18 @@
 # ENS-PSL LSP, Cognitice Science Masters 2nd year thesis project
 # Supervisors: Guido Maiello and Pascal Mamassian
 
+mouseResp=False
+eyeResp=False
+combinedResp=False
+response_type="mouse"
+if response_type=="mouse":
+    mouseResp=True
+elif response_type=="eye":
+    eyeResp=True
+elif response_type=="both":
+    combinedResp=True
+expectedFrameRate=60
+expectedDuration=20 # in seconds
 
 from psychopy import visual, core, event
 import numpy as np
@@ -31,9 +43,10 @@ import psychopy.iohub as io
 from psychopy.iohub.util import hideWindow, showWindow
 from psychopy.tools.monitorunittools import deg2pix, pix2deg
 from psychopy import monitors
+from NoiseGenerator import NoiseGenerator
+import numpy as np
 
 """          Experiment INFO Setup"""
-
 # Store info about the experiment session
 psychopyVersion = '2022.2.4'
 expName = 'continous_psych'  # from the Builder filename that created this script
@@ -54,13 +67,9 @@ _thisDir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(_thisDir)
 # Data file name stem = absolute path + name; later add .psyexp, .csv, .log, etc
 filename = _thisDir + os.sep + u'data/%s_%s_%s' % (expInfo['participant'], expName, expInfo['date'])
-
 conditions= create_conditions(numOfBlocks=1, blob_widths=[11,17,25], repeats=5)
-# import conditions.npy
-#conditions=np.load('conditions.npy')
-# Create PsychoPy window covering the whole screen
-sizeIs=1024
 #setup screen properties
+sizeIs=1024
 screen_width=37 #31 asuSs 14 # actual size of my screen in cm is 28x17
 screen_height=23 # 16.5 asus
 screen_distance=57
@@ -93,21 +102,16 @@ else:
     frameDur = 1.0 / 60.0  # could not measure, so guess
 space2pass=keyboard.Keyboard()
 endExpNow = False  # flag for 'escape' or other condition => quit the exp
-
-
 mouse = event.Mouse(win=win,visible=False)
-# TODO: arcmin to px conversion but open it later
-# def arcmin_to_px(arcmin=1,h=19,d=57,r=1080):
-#     dva= arcmin/60
-#     return(monitorunittools.deg2pix(degrees=dva,monitor=win.monitor))
 frameTolerance = 0.001  # how close to onset before 'same' frame
 
 
-
 # Eye tracker to use ('mouse', 'eyelink', 'gazepoint', or 'tobii')
-TRACKER = 'eyelink'
+if response_type=="mouse":
+    TRACKER = 'mouse'
+else:
+    TRACKER = 'eyelink'
 BACKGROUND_COLOR = [0, 0, 0]
-
 devices_config = dict()
 eyetracker_config = dict(name='tracker')
 if TRACKER == 'mouse':
@@ -127,34 +131,6 @@ else:
     print("{} is not a valid TRACKER name; please use 'mouse', 'eyelink', 'gazepoint', or 'tobii'.".format(TRACKER))
     core.quit()
 
-# # --- Setup input devices ---
-#ioConfig = {}
-
-# # Setup eyetracking
-# ioConfig['eyetracker.hw.sr_research.eyelink.EyeTracker'] = {
-#     'name': 'tracker',
-#     'model_name': 'EYELINK 1000 DESKTOP',
-#     'simulation_mode': False,
-#     'network_settings': '100.1.1.1',
-#     'default_native_data_file_name': 'EXPFILE',
-#     'runtime_settings': {
-#         'sampling_rate': 1000.0,
-#         'track_eyes': 'LEFT',
-#         'sample_filtering': {
-#             'sample_filtering': 'FILTER_LEVEL_2',
-#             'elLiveFiltering': 'FILTER_LEVEL_OFF',
-#         },
-#         'vog_settings': {
-#             'pupil_measure_types': 'PUPIL_AREA',
-#             'tracking_mode': 'PUPIL_CR_TRACKING',
-#             'pupil_center_algorithm': 'ELLIPSE_FIT',
-#         }
-#     }
-# }
-
-# Setup iohub keyboard
-#ioConfig['Keyboard'] = dict(use_keymap='psychopy')
-
 ioSession = '1'
 if 'session' in expInfo:
     ioSession = str(expInfo['session'])
@@ -166,9 +142,9 @@ eyetracker = ioServer.getDevice('tracker')
 # create a default keyboard (e.g. to check for escape)
 defaultKeyboard = keyboard.Keyboard(backend='iohub')
 # Display calibration gfx window and run calibration.
-result = eyetracker.runSetupProcedure()
-print("Calibration returned: ", result)
-
+if combinedResp or eyeResp:
+    result = eyetracker.runSetupProcedure()
+    print("Calibration returned: ", result)
 
 
 
@@ -181,37 +157,6 @@ noise_size = field_size  # Use the window size for noise texture
 noise_arcmin = 11  # Standard deviation for pixel noise || noise intensity Adjust to control noise intensity
 noise_std =deg2pix(degrees=arcmin_to_dva(noise_arcmin),monitor=win.monitor) #arcmin_to_px(noise_arcmin,h=screen_height,d=screen_distance,r=field_size[0])# convert arcmin to std for Gaussian
 noiseQuantity=120
-class NoiseGenerator:
-    def __init__(self, noise_size, noise_intensity=1, noise_quantity=120):
-        self.noise_size = noise_size
-        self.noise_intensity = noise_intensity
-        self.noise_quantity = noise_quantity
-        self.noise_instances = self._generate_noises()
-
-    def gauss_noise(self):
-        noise = np.random.normal(0, self.noise_intensity, size=self.noise_size)
-        return noise
-
-    def _generate_noises(self):
-        noise_instances = np.empty((self.noise_quantity, self.noise_size[0], self.noise_size[1]))
-        for i in range(self.noise_quantity):
-            noise_instances[i] = self.gauss_noise()
-        
-        noise_instances = np.clip(noise_instances, -3, 3)
-        noise_instances = (noise_instances - noise_instances.min()) / (noise_instances.max() - noise_instances.min()) * 2 - 1
-        return noise_instances
-
-    def create_visual_objects(self, win):
-        noise_objects = []
-        for i in range(self.noise_quantity):
-            noise_objects.append(visual.GratingStim(win, tex=self.noise_instances[i], size=self.noise_size, interpolate=False, units='pix'))
-            noise_objects[-1].draw()  # draw noise
-        return noise_objects
-
-
-
-
-
 """             Welcome screen to give instructions to the participant         """
 # Welcome screen
 welcomeText="""
@@ -240,7 +185,7 @@ event.waitKeys()
 win.flip()
 
 # Brownian motion properties
-blob_motion_std=2#arcmin_to_px(arcmin=1.32,h=screen_height,d=screen_distance,r=field_size[0])  # Standard deviation of Gaussian white noise velocities
+blob_motion_std=arcmin_to_px(arcmin=1.32,h=screen_height,d=screen_distance,r=field_size[0])*2  # Standard deviation of Gaussian white noise velocities
 # Create some handy timers
 globalClock = core.Clock()  # to track the time since experiment started
 routineTimer = core.Clock()  # to track time remaining of each (possibly non-sl€ip) routine 
@@ -272,8 +217,7 @@ for i in range(len(blob_widths)):
     blob_dict[blob_widths[i]]=blobs[i]
 
 
-expectedFrameRate=60
-expectedDuration=20 # in seconds
+
 expectedFrames=expectedFrameRate*expectedDuration
 
 """                         BLOB MOTION                """ 
@@ -283,15 +227,6 @@ def generateBrownianMotion(field_size, velocity_std, duration):
     num_frames = int(duration * expectedFrameRate)+1500 # add 600 frames to the duration
     velocies_x=np.random.normal(0, velocity_std, num_frames)
     velocies_y=np.random.normal(0, velocity_std, num_frames)
-    
-    ## Create UP DOWN motion Calculate the number of frames for each motion
-    # up_frames = num_frames // 3
-    # down_frames = num_frames - up_frames
-    # # Create arrays for each motion"
-    # up_motion = np.ones(up_frames)
-    # down_motion = -np.ones(down_frames)
-    # velocies_y=np.concatenate((up_motion, down_motion))
-
     # new positions = old position + velocity
     pos_x = np.cumsum(velocies_x)
     pos_y = np.cumsum(velocies_y)
@@ -309,17 +244,17 @@ fixationCross=visual.TextStim(win, text='+', color=[1, 1, 1], units='pix', heigh
 ## blob data
 all_blob_x = []
 all_blob_y = []
-all_blob_v=[]
-### mouse data
-all_mouse_x = []
-all_mouse_y = []
-all_mouse_v=[]
+### eye data
+allEyeX = []
+allEyeY = []
 ### stimulus data
 all_stim_x = []
 all_stim_y = []
-all_stim_v=[]
+### mouse data
+all_mouse_x = []
+all_mouse_y = []
 jumped=False
-
+looksAway=False
 
 ## --- define have a rest screen ###
 trialNum=1
@@ -363,19 +298,14 @@ for blob_width in sorted(conditions):
     mouse.setPos(newPos=(0,0))
     win.flip(clearBuffer=True)
 
-    mouse.y=[]
-    mouse.x=[]
+
     # create blob motion positions
     pos_x_obj, pos_y_obj = generateBrownianMotion(field_size=noise_size[0], velocity_std=blob_motion_std, duration=expectedDuration)# pre-generate brownian motion
     pos_x_obj=np.insert(pos_x_obj,0,0)
     pos_y_obj=np.insert(pos_y_obj,0,0)
-    # calcuate velocity of blob
-    blob_v = np.sqrt(np.diff(pos_x_obj)**2 + np.diff(pos_y_obj)**2)
-    blob_v = np.insert(blob_v, 0, 0)
-    # save blob velocity
+    # append blob positions for each trial
     all_blob_x.append(pos_x_obj)
     all_blob_y.append(pos_y_obj)
-    all_blob_v.append(blob_v)
 
     win.clearBuffer()
     intensity_profiles = []  # List to store intensity profiles
@@ -388,16 +318,23 @@ for blob_width in sorted(conditions):
     t = 0
     # # wait for 1 second before starting the trial
     waiterTime=0
-    while  waiterTime <0.5:
+    while  waiterTime <0.2:
         waiterTime = globalClock.getTime() - tStart
         fixationCross.draw()
         win.flip()
     # draw the stimulus
     blob_obj.setAutoDraw(True)
-    obs_pointer.setAutoDraw(False)
-    mouse.setVisible(False)  
-    response_x=np.empty((expectedFrames))
-    response_y=np.empty((expectedFrames))
+    
+    if mouseResp or combinedResp:
+        obs_pointer.setAutoDraw(True)
+    mouse.setVisible(False)
+    # all eye responses
+    eyeRespsX=np.empty((expectedFrames))
+    eyeRespsY=np.empty((expectedFrames))
+    # all mouse responses
+    mX=np.empty((expectedFrames))
+    mY=np.empty((expectedFrames))
+    # all stimulus positions
     stim_x=np.empty((expectedFrames))
     stim_y=np.empty((expectedFrames))
     mouse_v=np.empty((expectedFrames))
@@ -411,36 +348,38 @@ for blob_width in sorted(conditions):
     while continueRoutine:
         realFrameN=realFrameN+1
         random_noise_index = int(randint(0, noiseQuantity))
-        #frameN+= 1  # number of completed frames (so 0 is the first frame)
-
-        # Get the latest gaze position in display coord space.
-        gpos = eyetracker.getLastGazePosition()
-        valid_gaze_pos = isinstance(gpos, (tuple, list))
-        if valid_gaze_pos:
-            mX=gpos[0]
-            mY=gpos[1]
-            jumped=np.sqrt((mX-obs_pointer.pos[0])**2+(mY-obs_pointer.pos[1])**2)>blob_motion_std*20
-            looksAway=(np.sqrt((pos_x_obj[realFrameN-1]-mX)**2+(pos_y_obj[realFrameN-1]-mY)**2))>blob_motion_std*30
-        if jumped or looksAway or not valid_gaze_pos:
-            pass
-        else:
-            frameN+=1
-        # Update stim based on gaze position
-        # draw the stimulus
-        if valid_gaze_pos and gpos is not None:
-            obs_pointer.setPos(gpos)
         noise_obj[random_noise_index].draw()    # draw noise
         blob_obj.setPos((pos_x_obj[realFrameN], pos_y_obj[realFrameN]))
+        #frameN+= 1  # number of completed frames (so 0 is the first frame)
+        if eyeResp or combinedResp:
+            # Get the latest gaze position in display coord space.
+            gpos = eyetracker.getLastGazePosition()
+            valid_gaze_pos = isinstance(gpos, (tuple, list))
+            if valid_gaze_pos:
+                gX=gpos[0]
+                gY=gpos[1]
+                jumped=np.sqrt((gX-obs_pointer.pos[0])**2+(gY-obs_pointer.pos[1])**2)>blob_motion_std*20
+                looksAway=(np.sqrt((pos_x_obj[realFrameN-1]-gX)**2+(pos_y_obj[realFrameN-1]-gY)**2))>blob_motion_std*30
+            if jumped or looksAway or not valid_gaze_pos:
+                pass
+            else:
+                frameN+=1
+                stim_x[frameN]=blob_obj.pos[0]
+                stim_y[frameN]=blob_obj.pos[1]
+                eyeRespsX[frameN]=gX
+                eyeRespsY[frameN]=gY
+                if combinedResp:
+                    mX.append(mouse.getPos()[0])
+                    mY.append(mouse.getPos()[1])
+                    obs_pointer.setPos(mouse.getPos())
+        if mouseResp:
+            frameN+=1
+            mX[frameN]=mouse.getPos()[0]
+            mY[frameN]=mouse.getPos()[1]
+            obs_pointer.setPos(mouse.getPos())
 
-        #save mouse position
-        if not jumped or not looksAway:
-            stim_x[frameN]=blob_obj.pos[0]
-            stim_y[frameN]=blob_obj.pos[1]
-            response_x[frameN]=obs_pointer.pos[0]
-            response_y[frameN]=obs_pointer.pos[1]
         # flip the window
         win.flip()
-
         # end the loop after given seconds
         if frameN > expectedFrames-2:
             continueRoutine = False
@@ -458,25 +397,47 @@ for blob_width in sorted(conditions):
     trialNum+=1
     t = routineTimer.getTime()
     print("time of finish: "+str(t))
-    print("Maximum frame achieved"+str(frameN))
-    print("Maximum frame achieved"+str(realFrameN))
+    print("Maximum frame achieved "+str(frameN))
+    print("Maximum realFrame achieved "+str(realFrameN))
 
     # save positions of target, mouse, and but first calculate velocities
-    response_x = np.array(response_x)
-    response_y = np.array(response_y)
-    mouse_v = np.sqrt(np.diff(response_x)**2 + np.diff(response_y)**2)
-    mouse_v = np.insert(mouse_v, 0, 0)
-    all_mouse_x.append(response_x)
-    all_mouse_y.append(response_y)
-    all_mouse_v.append(mouse_v)
+    if eyeResp:
+        eyeRespsX = np.array(eyeRespsX)
+        eyeRespsY = np.array(eyeRespsY)
+        eyeRespsX = np.insert(eyeRespsX, 0, 0)
+        eyeRespsY = np.insert(eyeRespsY, 0, 0)
+        allEyeX.append(eyeRespsX)
+        allEyeY.append(eyeRespsY)
+    elif mouseResp:
+        mX = np.array(mX)
+        mY = np.array(mY)
+        mX = np.insert(mX, 0, 0)
+        mY = np.insert(mY, 0, 0)
+        all_mouse_x.append(mX)
+        all_mouse_y.append(mY)
+    elif combinedResp:
+        mX = np.array(mX)
+        mY = np.array(mY)
+        mX = np.insert(mX, 0, 0)
+        mY = np.insert(mY, 0, 0)
+        all_mouse_x.append(mX)
+        all_mouse_y.append(mY)
+        eyeRespsX = np.array(eyeRespsX)
+        eyeRespsY = np.array(eyeRespsY)
+        eyeRespsX = np.insert(eyeRespsX, 0, 0)
+        eyeRespsY = np.insert(eyeRespsY, 0, 0)
+        allEyeX.append(eyeRespsX)
+        allEyeY.append(eyeRespsY)
+
+
     stim_x = np.array(stim_x)
     stim_y = np.array(stim_y)
-    stim_v = np.sqrt(np.diff(stim_x)**2 + np.diff(stim_y)**2)
-    stim_v = np.insert(stim_v, 0, 0)
-    # save mouse velocity
+    stim_x = np.insert(stim_x, 0, 0)
+    stim_y = np.insert(stim_y, 0, 0)
     all_stim_x.append(stim_x)
     all_stim_y.append(stim_y)
-    all_stim_v.append(stim_v)
+
+
     space2pass.keys = None
 
     if endExpNow or defaultKeyboard.getKeys(keyList=["escape"]):
@@ -500,15 +461,17 @@ if not endExpNow:
     win.close()
 
 ##
-
-# Close the window
-#event.waitKeys()
-#win.close()
-# write mouse positions, velocities, and blob velocities and positions and conditions as a matlab data file
+# save data as mat file
 import scipy.io as sio
 # make conditions as numpy
 conditions=np.array(conditions)
 conditions=conditions.T
 filename = u'data/%s_%s_%s' % (expInfo['participant'], expName, expInfo['date'])
-sio.savemat(filename+'.mat', {'mouse_x': all_mouse_x, 'mouse_y': all_mouse_y, 'response': all_mouse_v, 'blob_x': all_stim_x, 'blob_y': all_stim_y, 'target': all_stim_v, 'sigma': sigma_trials})
+if eyeResp:
+    sio.savemat(filename+'.mat', {'eyeX': allEyeX, 'eyeY': allEyeY, 'blob_x': all_stim_x, 'blob_y': all_stim_y, 'sigma': sigma_trials})
+elif mouseResp:
+    sio.savemat(filename+'.mat', {'mouse_x': all_mouse_x, 'mouse_y': all_mouse_y, 'blob_x': all_stim_x, 'blob_y': all_stim_y, 'sigma': sigma_trials})
+elif combinedResp:
+    sio.savemat(filename+'.mat', {'eyeX': allEyeX, 'eyeY': allEyeY, 'mouse_x': all_mouse_x, 'mouse_y': all_mouse_y, 'blob_x': all_stim_x, 'blob_y': all_stim_y, 'sigma': sigma_trials})
+
 core.quit()
