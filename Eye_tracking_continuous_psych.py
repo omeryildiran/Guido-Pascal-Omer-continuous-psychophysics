@@ -3,11 +3,11 @@
 # Start date: August 2023
 # ENS-PSL LSP, Cognitice Science Masters 2nd year thesis project
 # Supervisors: Guido Maiello and Pascal Mamassian
-
+eyeFeedback=False
 mouseResp=False
 eyeResp=False
 combinedResp=False
-response_type="mouse"
+response_type="both"
 if response_type=="mouse":
     mouseResp=True
 elif response_type=="eye":
@@ -70,9 +70,9 @@ filename = _thisDir + os.sep + u'data/%s_%s_%s' % (expInfo['participant'], expNa
 conditions= create_conditions(numOfBlocks=1, blob_widths=[11,17,25], repeats=5)
 #setup screen properties
 sizeIs=1024
-screen_width=37 #31 asuSs 14 # actual size of my screen in cm is 28x17
-screen_height=23 # 16.5 asus
-screen_distance=57
+screen_width=35 #31 asuSs 14 # actual size of my screen in cm is 28x17
+screen_height=28 # 16.5 asus
+screen_distance=60
 # define monitor
 labMonitor=monitors.Monitor('labMon', width=37, distance=57)
 labMonitor.setSizePix((sizeIs, sizeIs))
@@ -185,7 +185,7 @@ event.waitKeys()
 win.flip()
 
 # Brownian motion properties
-blob_motion_std=arcmin_to_px(arcmin=1.32,h=screen_height,d=screen_distance,r=field_size[0])*2  # Standard deviation of Gaussian white noise velocities
+blob_motion_std=arcmin_to_px(arcmin=2,h=screen_height,d=screen_distance,r=field_size[0])  # Standard deviation of Gaussian white noise velocities
 # Create some handy timers
 globalClock = core.Clock()  # to track the time since experiment started
 routineTimer = core.Clock()  # to track time remaining of each (possibly non-sl€ip) routine 
@@ -224,7 +224,7 @@ expectedFrames=expectedFrameRate*expectedDuration
 # Blob motion by changing velocity on x and y axis according to the brownian motion
 def generateBrownianMotion(field_size, velocity_std, duration):
     # Generate random velocity for each frame
-    num_frames = int(duration * expectedFrameRate)+1500 # add 600 frames to the duration
+    num_frames = int(duration * expectedFrameRate)+1200 # add 600 frames to the duration
     velocies_x=np.random.normal(0, velocity_std, num_frames)
     velocies_y=np.random.normal(0, velocity_std, num_frames)
     # new positions = old position + velocity
@@ -293,12 +293,9 @@ for blob_width in sorted(conditions):
     # create blob
     blob=blob_dict[blob_width]
     blob_obj = visual.GratingStim(win, tex=None, mask=blob,  units='pix', interpolate=False)
-    # create observation pointer
-    obs_pointer.setAutoDraw(False)
+    
     mouse.setPos(newPos=(0,0))
     win.flip(clearBuffer=True)
-
-
     # create blob motion positions
     pos_x_obj, pos_y_obj = generateBrownianMotion(field_size=noise_size[0], velocity_std=blob_motion_std, duration=expectedDuration)# pre-generate brownian motion
     pos_x_obj=np.insert(pos_x_obj,0,0)
@@ -324,10 +321,12 @@ for blob_width in sorted(conditions):
         win.flip()
     # draw the stimulus
     blob_obj.setAutoDraw(True)
-    
-    if mouseResp or combinedResp:
-        obs_pointer.setAutoDraw(True)
     mouse.setVisible(False)
+    # draw observation pointer
+    if mouseResp or combinedResp or eyeFeedback:
+        obs_pointer.setAutoDraw(True)
+    else:
+        obs_pointer.setAutoDraw(False)
     # all eye responses
     eyeRespsX=np.empty((expectedFrames))
     eyeRespsY=np.empty((expectedFrames))
@@ -341,6 +340,10 @@ for blob_width in sorted(conditions):
     checkPointX=0
     checkPointY=0
 
+    jumpTreshold=dva_to_px(size_in_deg=2,h=screen_height,d=screen_distance,r=field_size[0])
+    looksAwayTreshold=dva_to_px(size_in_deg=3,h=screen_height,d=screen_distance,r=field_size[0])
+    #jumpTreshold=arcmin_to_px(arcmin=blob_width*10,h=screen_height,d=screen_distance,r=field_size[0])
+    #looksAwayTreshold=arcmin_to_px(arcmin=blob_width*30,h=screen_height,d=screen_distance,r=field_size[0])
     #ioServer.ClearEvents()
     tStart = globalClock.getTime()
     ##################### Trial Start #####################
@@ -358,8 +361,8 @@ for blob_width in sorted(conditions):
             if valid_gaze_pos:
                 gX=gpos[0]
                 gY=gpos[1]
-                jumped=np.sqrt((gX-obs_pointer.pos[0])**2+(gY-obs_pointer.pos[1])**2)>blob_motion_std*20
-                looksAway=(np.sqrt((pos_x_obj[realFrameN-1]-gX)**2+(pos_y_obj[realFrameN-1]-gY)**2))>blob_motion_std*30
+                jumped=np.sqrt((gX-obs_pointer.pos[0])**2+(gY-obs_pointer.pos[1])**2)>jumpTreshold
+                looksAway=(np.sqrt((pos_x_obj[realFrameN-1]-gX)**2+(pos_y_obj[realFrameN-1]-gY)**2))>looksAwayTreshold
             if jumped or looksAway or not valid_gaze_pos:
                 pass
             else:
@@ -368,15 +371,19 @@ for blob_width in sorted(conditions):
                 stim_y[frameN]=blob_obj.pos[1]
                 eyeRespsX[frameN]=gX
                 eyeRespsY[frameN]=gY
-                if combinedResp:
-                    mX.append(mouse.getPos()[0])
-                    mY.append(mouse.getPos()[1])
-                    obs_pointer.setPos(mouse.getPos())
-        if mouseResp:
+                
+                if eyeFeedback:
+                    obs_pointer.setPos((gX,gY))
+        if combinedResp:
+            obs_pointer.setPos(mouse.getPos())
+            if not jumped and not looksAway or valid_gaze_pos:
+                mX[frameN]=mouse.getPos()[0]
+                mY[frameN]=mouse.getPos()[1]
+        elif mouseResp:
+            obs_pointer.setPos(mouse.getPos())
             frameN+=1
             mX[frameN]=mouse.getPos()[0]
             mY[frameN]=mouse.getPos()[1]
-            obs_pointer.setPos(mouse.getPos())
 
         # flip the window
         win.flip()
