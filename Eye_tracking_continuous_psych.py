@@ -314,15 +314,15 @@ while trialNum < len(conditions) and not endExpNow:
     space2pass.keys = []
     space2pass.clearEvents(eventType='keyboard')
     #save conditions
-    if trialNum%haveRestNum==0 and trialNum!=1:
-        haveRest=True
-        while haveRest:
-            haveRestText.draw()
-            win.flip()
-            theseKeys = space2pass.getKeys(keyList=['space'])
-            _space2pass_allKeys.extend(theseKeys)
-            if len(_space2pass_allKeys)>0:
-                haveRest=False
+    #if trialNum%haveRestNum==0 and trialNum!=1:
+    haveRest=True
+    while haveRest:
+        haveRestText.draw()
+        win.flip()
+        theseKeys = space2pass.getKeys(keyList=['space'])
+        _space2pass_allKeys.extend(theseKeys)
+        if len(_space2pass_allKeys)>0:
+            haveRest=False
 
     mouse.setPos((0,0))
     # set a timer for the next line record the time spent
@@ -380,7 +380,7 @@ while trialNum < len(conditions) and not endExpNow:
     checkPointX=0
     checkPointY=0
 
-    jumpTreshold=dva_to_px(size_in_deg=1,h=screen_height,d=screen_distance,r=field_size[0])
+    jumpTreshold=dva_to_px(size_in_deg=1.5,h=screen_height,d=screen_distance,r=field_size[0])
     print(jumpTreshold)
     looksAwayTreshold=dva_to_px(size_in_deg=5,h=screen_height,d=screen_distance,r=field_size[0])
     wrongGazePointer= visual.Circle(win, radius=10, fillColor='black',colorSpace='rgb', units='pix',size=0.30)
@@ -420,24 +420,16 @@ while trialNum < len(conditions) and not endExpNow:
                         stim_y[frameN]=blob_obj.pos[1]
                         eyeRespsX[frameN]=gX
                         eyeRespsY[frameN]=gY
-                    elif jumped:
-                        wrongGazePointer.setPos((gX,gY))
-                        wrongGazePointer.draw()
-                elif looksAway:
-                    wrongGazePointer.setPos((gX,gY))
-                    wrongGazePointer.draw()
-            if not valid_gaze_pos:
-                wrongGazePointer.setPos((0,0))
-                wrongGazePointer.draw()
+            #         elif jumped:
+            #             wrongGazePointer.setPos((gX,gY))
+            #             wrongGazePointer.draw()
+            #     elif looksAway:
+            #         wrongGazePointer.setPos((gX,gY))
+            #         wrongGazePointer.draw()
+            # if not valid_gaze_pos:
+            #     wrongGazePointer.setPos((0,0))
+            #     wrongGazePointer.draw()
 
-                    #pass
-            # else:
-                # frameN+=1
-                # stim_x[frameN]=blob_obj.pos[0]
-                # stim_y[frameN]=blob_obj.pos[1]
-                # eyeRespsX[frameN]=gX
-                # eyeRespsY[frameN]=gY
-                
             if eyeFeedback:
                 obs_pointer.setPos((gX,gY))
         if combinedResp:
@@ -469,6 +461,8 @@ while trialNum < len(conditions) and not endExpNow:
     obs_pointer.setAutoDraw(False)
     if redoTrial == False:
         trialNum+=1
+    elif redoTrial:
+        continue
     t = routineTimer.getTime()
     print("time of finish: "+str(t))
     print("Maximum frame achieved "+str(frameN))
