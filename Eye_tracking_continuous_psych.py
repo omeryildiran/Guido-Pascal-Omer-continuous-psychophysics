@@ -7,7 +7,7 @@ eyeFeedback=False
 mouseResp=False
 eyeResp=False
 combinedResp=False
-response_type="both"
+response_type="eye"
 if response_type=="mouse":
     mouseResp=True
 elif response_type=="eye":
@@ -69,7 +69,7 @@ os.chdir(_thisDir)
 filename = _thisDir + os.sep + u'data/%s_%s_%s' % (expInfo['participant'], expName, expInfo['date'])
 conditions= create_conditions(numOfBlocks=1, blob_widths=[11,17,25], repeats=5)
 #setup screen properties
-sizeIs=1024
+sizeIs=1024 # 1024
 screen_width=35 #31 asuSs 14 # actual size of my screen in cm is 28x17
 screen_height=28 # 16.5 asus
 screen_distance=60
@@ -147,6 +147,21 @@ if combinedResp or eyeResp:
     print("Calibration returned: ", result)
 
 
+calibrationTarget = visual.TargetStim(win, 
+    name='calibrationTarget',
+    radius=0.01, fillColor='', borderColor='black', lineWidth=2.0,
+    innerRadius=0.0035, innerFillColor='green', innerBorderColor='black', innerLineWidth=2.0,
+    colorSpace='rgb', units='height'
+)
+
+# define parameters for calibration
+calibration = hardware.eyetracker.EyetrackerCalibration(win, 
+    eyetracker, calibrationTarget,
+    units=None, colorSpace='rgb',
+    progressMode='time', targetDur=1.5, expandScale=1.5,
+    targetLayout='NINE_POINTS', randomisePos=True, textColor='white',
+    movementAnimation=True, targetDelay=1.0
+)
 
 ########################################################################################################################
 ### -------Initialize componens  for target tracking trial-------------------------
@@ -224,7 +239,7 @@ expectedFrames=expectedFrameRate*expectedDuration
 # Blob motion by changing velocity on x and y axis according to the brownian motion
 def generateBrownianMotion(field_size, velocity_std, duration):
     # Generate random velocity for each frame
-    num_frames = int(duration * expectedFrameRate)+1200 # add 600 frames to the duration
+    num_frames = int(duration * expectedFrameRate)+300 # add 600 frames to the duration
     velocies_x=np.random.normal(0, velocity_std, num_frames)
     velocies_y=np.random.normal(0, velocity_std, num_frames)
     # new positions = old position + velocity
@@ -257,7 +272,7 @@ jumped=False
 looksAway=False
 
 ## --- define have a rest screen ###
-trialNum=1
+trialNum=0
 haveRest=False
 haveRestText=visual.TextStim(win, text='Press space to continue', color=[1, 1, 1], units='pix', height=20)
 haveRestNum=1
@@ -266,9 +281,34 @@ sigma_trials=[]
 win.setMouseVisible(False)    
 
 # create a warning text to indicate the participant to look at the blob if they look 2dva away from the blob
-look_warning=visual.TextStim(win, text='Look at the blob', color=[1, 1, 1], units='pix', height=20)
-
-for blob_width in sorted(conditions):
+redoTrialText=visual.TextStim(win, text='Did you get distracted in last trial?\n Well now you need to redo do trial or press C to recalibrate or N to just go ahead!', color=[1, 1, 1], units='pix', height=20)
+redoTrial=False
+calibOkText=visual.TextStim(win, text='Is Calibration done? Are you ready to continue? (Y/N)', color=[1, 1, 1], units='pix', height=20)
+conditions=sorted(conditions)
+#region [rgba(20, 184, 196, 0.23)]
+while trialNum < len(conditions) and not endExpNow:
+    blob_width = conditions[trialNum]
+    if redoTrial:
+        redoTrialText.draw()
+        win.flip()
+        event.waitKeys()
+        redoTrial=False
+        theseKeys = event.waitKeys(keyList=['c', 'n'])
+        if theseKeys:
+            if 'c' in theseKeys:
+                # run calibration
+                calibration.run()
+                defaultKeyboard.clearEvents()
+                routineTimer.reset()
+                calibOkText.draw()
+                win.flip()
+                theseKeys2=event.waitKeys(keyList=['y', 'n'])
+                if 'y' in theseKeys2:
+                    continue
+            elif 'n' in theseKeys:
+                continue
+        # redo the last blob_width
+        continue
     sigma_trials.append(blob_width)
     _space2pass_allKeys = []
     space2pass.keys = []
@@ -279,7 +319,7 @@ for blob_width in sorted(conditions):
         while haveRest:
             haveRestText.draw()
             win.flip()
-            theseKeys = space2pass.getKeys(keyList=['space'], waitRelease=False)
+            theseKeys = space2pass.getKeys(keyList=['space'])
             _space2pass_allKeys.extend(theseKeys)
             if len(_space2pass_allKeys)>0:
                 haveRest=False
@@ -340,15 +380,23 @@ for blob_width in sorted(conditions):
     checkPointX=0
     checkPointY=0
 
-    jumpTreshold=dva_to_px(size_in_deg=2,h=screen_height,d=screen_distance,r=field_size[0])
-    looksAwayTreshold=dva_to_px(size_in_deg=3,h=screen_height,d=screen_distance,r=field_size[0])
+    jumpTreshold=dva_to_px(size_in_deg=1,h=screen_height,d=screen_distance,r=field_size[0])
+    print(jumpTreshold)
+    looksAwayTreshold=dva_to_px(size_in_deg=5,h=screen_height,d=screen_distance,r=field_size[0])
+    wrongGazePointer= visual.Circle(win, radius=10, fillColor='black',colorSpace='rgb', units='pix',size=0.30)
     #jumpTreshold=arcmin_to_px(arcmin=blob_width*10,h=screen_height,d=screen_distance,r=field_size[0])
     #looksAwayTreshold=arcmin_to_px(arcmin=blob_width*30,h=screen_height,d=screen_distance,r=field_size[0])
     #ioServer.ClearEvents()
+    gXall=[0]
+    gYall=[0]
     tStart = globalClock.getTime()
+    #region [rgba(206, 10, 118, 0.14)]
     ##################### Trial Start #####################
     eyetracker.setRecordingState(True)  # start recording of gaze
     while continueRoutine:
+        if realFrameN>len(pos_x_obj)-2:
+            redoTrial=True
+            break            
         realFrameN=realFrameN+1
         random_noise_index = int(randint(0, noiseQuantity))
         noise_obj[random_noise_index].draw()    # draw noise
@@ -361,19 +409,37 @@ for blob_width in sorted(conditions):
             if valid_gaze_pos:
                 gX=gpos[0]
                 gY=gpos[1]
-                jumped=np.sqrt((gX-obs_pointer.pos[0])**2+(gY-obs_pointer.pos[1])**2)>jumpTreshold
-                looksAway=(np.sqrt((pos_x_obj[realFrameN-1]-gX)**2+(pos_y_obj[realFrameN-1]-gY)**2))>looksAwayTreshold
-            if jumped or looksAway or not valid_gaze_pos:
-                pass
-            else:
-                frameN+=1
-                stim_x[frameN]=blob_obj.pos[0]
-                stim_y[frameN]=blob_obj.pos[1]
-                eyeRespsX[frameN]=gX
-                eyeRespsY[frameN]=gY
+                looksAway=(np.sqrt((pos_x_obj[realFrameN]-gX)**2+(pos_y_obj[realFrameN]-gY)**2))>looksAwayTreshold
+                if not looksAway:
+                    gXall.append(gX)
+                    gYall.append(gY)
+                    jumped=np.sqrt((gX-gXall[-2])**2+(gY-gYall[-2])**2)>jumpTreshold
+                    if not jumped:
+                        frameN+=1
+                        stim_x[frameN]=blob_obj.pos[0]
+                        stim_y[frameN]=blob_obj.pos[1]
+                        eyeRespsX[frameN]=gX
+                        eyeRespsY[frameN]=gY
+                    elif jumped:
+                        wrongGazePointer.setPos((gX,gY))
+                        wrongGazePointer.draw()
+                elif looksAway:
+                    wrongGazePointer.setPos((gX,gY))
+                    wrongGazePointer.draw()
+            if not valid_gaze_pos:
+                wrongGazePointer.setPos((0,0))
+                wrongGazePointer.draw()
+
+                    #pass
+            # else:
+                # frameN+=1
+                # stim_x[frameN]=blob_obj.pos[0]
+                # stim_y[frameN]=blob_obj.pos[1]
+                # eyeRespsX[frameN]=gX
+                # eyeRespsY[frameN]=gY
                 
-                if eyeFeedback:
-                    obs_pointer.setPos((gX,gY))
+            if eyeFeedback:
+                obs_pointer.setPos((gX,gY))
         if combinedResp:
             obs_pointer.setPos(mouse.getPos())
             if not jumped and not looksAway or valid_gaze_pos:
@@ -394,14 +460,15 @@ for blob_width in sorted(conditions):
         if endExpNow or defaultKeyboard.getKeys(keyList=["escape"]):
             endExpNow = True
             continueRoutine = False
-
+        #endregion
     # the Routine "trial" was not non-slip safe, so reset the non-slip timer
     eyetracker.setRecordingState(False)  # stop recording of gaze
     tEnd = globalClock.getTime()
     print("trial lasteD: "+str(tEnd-tStart))
     blob_obj.setAutoDraw(False)
     obs_pointer.setAutoDraw(False)
-    trialNum+=1
+    if redoTrial == False:
+        trialNum+=1
     t = routineTimer.getTime()
     print("time of finish: "+str(t))
     print("Maximum frame achieved "+str(frameN))
@@ -457,7 +524,7 @@ for blob_width in sorted(conditions):
         win.close()
         eyetracker.setConnectionState(False)
         break
-
+    #endregion
 # Create an Ending Screen
 if not endExpNow:
     endText=visual.TextStim(win, text='Thank you for your participation press any key to exit', color=[1, 1, 1], units='pix', height=20)
