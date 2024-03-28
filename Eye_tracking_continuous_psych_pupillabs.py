@@ -69,8 +69,8 @@ filename = _thisDir + os.sep + u'data/%s_%s_%s_%s' % (expInfo['participant'],res
 conditions= create_conditions(numOfBlocks=1, blob_widths=[11,17,25], repeats=5)
 #setup screen properties
 sizeIs=1024 # 1024
-screen_width=35 #31 asuSs 14 # actual size of my screen in cm is 28x17
-screen_height=28 # 16.5 asus
+screen_width=26.8 #31 asuSs 14 # actual size of my screen in cm is 28x17
+screen_height=26.8 # 16.5 asus
 screen_distance=60
 # define monitor
 labMonitor=monitors.Monitor('labMon', width=37, distance=57)
