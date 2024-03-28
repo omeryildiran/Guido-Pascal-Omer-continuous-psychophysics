@@ -7,7 +7,7 @@ eyeFeedback=False
 mouseResp=False
 eyeResp=False
 combinedResp=False
-response_type="both"
+response_type="eye"
 if response_type=="mouse":
     mouseResp=True
 elif response_type=="eye":
@@ -84,7 +84,7 @@ win = visual.Window(size=(sizeIs,sizeIs),
                     units='pix', 
                     color=[0, 0, 0],
                       useFBO=True,
-                      screen=1,
+                      screen=0,
                       colorSpace='rgb')
 field_size=[sizeIs,sizeIs]
 ### Set the monitor to the correct distance and size
@@ -109,7 +109,7 @@ frameTolerance = 0.001  # how close to onset before 'same' frame
 if response_type=="mouse":
     TRACKER = 'mouse'
 else:
-    TRACKER = 'eyelink'
+    TRACKER = 'pupilcore'
 BACKGROUND_COLOR = [0, 0, 0]
 devices_config = dict()
 eyetracker_config = dict(name='tracker')
@@ -126,6 +126,29 @@ elif TRACKER == 'eyelink':
     eyetracker_config['runtime_settings'] = dict(sampling_rate=2000, track_eyes='RIGHT')
     eyetracker_config['calibration'] = dict(screen_background_color=BACKGROUND_COLOR, auto_pace=True)
     devices_config['eyetracker.hw.sr_research.eyelink.EyeTracker'] = eyetracker_config
+
+elif TRACKER == 'pupilcore':
+    eyetracker_config['calibration'] = dict(screen_background_color=BACKGROUND_COLOR,
+                                            auto_pace=True,
+                                            target_attributes=dict(animate=dict(enable=True, expansion_ratio=1.5,
+                                                                                contract_only=False)))
+    devices_config['eyetracker.hw.pupil_labs.pupil_core.EyeTracker'] = {
+        'name': 'tracker',
+        'runtime_settings': {
+            'pupillometry_only': False,
+            'surface_name': 'psychopy_iohub_surface',
+            'confidence_threshold': 0.6,
+            'pupil_remote': {
+                'ip_address': '127.0.0.1',
+                'port': 50020.0,
+                'timeout_ms': 1000.0,
+            },
+            'pupil_capture_recording': {
+                'enabled': True,
+                'location': '',
+            }
+        }
+    }
 else:
     print("{} is not a valid TRACKER name; please use 'mouse', 'eyelink', 'gazepoint', or 'tobii'.".format(TRACKER))
     core.quit()
@@ -292,6 +315,7 @@ redoTrialText=visual.TextStim(win, text='Did you get distracted in last trial?\n
 redoTrial=False
 calibOkText=visual.TextStim(win, text='Is Calibration done? Are you ready to continue? (Y/N)', color=[1, 1, 1], units='pix', height=20)
 #conditions=sorted(conditions)
+#shuffle conditions
 from random import shuffle
 shuffle(conditions)
 #region [rgba(20, 184, 196, 0.23)]
