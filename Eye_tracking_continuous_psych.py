@@ -7,7 +7,7 @@ eyeFeedback=False
 mouseResp=False
 eyeResp=False
 combinedResp=False
-response_type="both"
+response_type="mouse"
 if response_type=="mouse":
     mouseResp=True
 elif response_type=="eye":
@@ -16,6 +16,9 @@ elif response_type=="both":
     combinedResp=True
 expectedFrameRate=60
 expectedDuration=20 # in seconds
+
+# motor noise
+addMouseNoise=True
 
 from psychopy import visual, core, event
 import numpy as np
@@ -78,9 +81,10 @@ labMonitor.setSizePix((sizeIs, sizeIs))
 myMon=monitors.Monitor('asusMon', width=31, distance=57)
 #labMonitor.setgamma(2.4)
 #labMonitor.setwhite([0.95, 0.95, 0.95])  # Example white point with slightly lower values
+selectedMon=myMon
 win = visual.Window(size=(sizeIs,sizeIs),
                      fullscr=True, 
-                     monitor=labMonitor, 
+                     monitor=labMonitor , 
                     units='pix', 
                     color=[0, 0, 0],
                       useFBO=True,
@@ -465,7 +469,10 @@ while trialNum < len(conditions) and not endExpNow:
                 mX[frameN]=mouse.getPos()[0]
                 mY[frameN]=mouse.getPos()[1]
         elif mouseResp:
-            obs_pointer.setPos(mouse.getPos())
+            if addMouseNoise:
+                obs_pointer.setPos((mouse.getPos()[0]+np.random.normal(0,2),mouse.getPos()[1]+np.random.normal(0,2)))
+            else:
+                obs_pointer.setPos(mouse.getPos())
             frameN+=1
             mX[frameN]=mouse.getPos()[0]
             mY[frameN]=mouse.getPos()[1]
