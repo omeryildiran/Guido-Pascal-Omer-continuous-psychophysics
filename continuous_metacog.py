@@ -4,7 +4,12 @@
 # ENS-PSL LSP, Cognitice Science Masters 2nd year thesis project
 # Supervisors: Guido Maiello and Pascal Mamassian
 
-response_type="mouse"
+response_type="both"
+
+if response_type=="both" or response_type=="eye":
+    defaultMonitor='labMon'
+else:
+    defaultMonitor='asus'
 
 eyeFeedback=False
 mouseResp=False
@@ -60,6 +65,7 @@ expName = 'continous_psych'  # from the Builder filename that created this scrip
 expInfo = {
     'participant': f"{randint(0, 999999):06.0f}",
     'session': '001',
+    'monitor': defaultMonitor,
 }
 # --- Show participant info dialog --
 dlg = gui.DlgFromDict(dictionary=expInfo, sortKeys=False, title=expName)
@@ -68,15 +74,16 @@ if dlg.OK == False:
 expInfo['date'] = data.getDateStr()  # add a simple timestamp
 expInfo['expName'] = expName
 expInfo['psychopyVersion'] = psychopyVersion
+
 # Ensure that relative paths start from the same directory as this script
 _thisDir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(_thisDir)
 # Data file name stem = absolute path + name; later add .psyexp, .csv, .log, etc
-filename = _thisDir + os.sep + u'data/p%s_%s_%s_%s' % (expInfo['participant'],response_type, expName, expInfo['date'],)
+filename = _thisDir + os.sep + u'data/p%s_%s_%s_%s_%s' % (expInfo['participant'],response_type, expInfo['monitor'],expName, expInfo['date'],)
 
 """ ------------setup screen properties---------"""
 monitor_options = {
-    "asusZenbook14": {
+    "asus": {
         "sizeIs": 1024,
         "screen_width": 16,
         "screen_height": 16,
@@ -89,22 +96,18 @@ monitor_options = {
         "screen_distance": 60
     }
 }
-monitorSpecs=monitor_options["asusZenbook14"]
-sizeIs=monitorSpecs["sizeIs"] # 1024
-screen_width=monitorSpecs["screen_width"] #31 asuSs 14 # actual size of my screen in cm is 28x17
-screen_height=monitorSpecs["screen_height"] #28 # 16.5 asus
-screen_distance=monitorSpecs["screen_distance"] #60 # 57 asus
+monitorSelected=monitor_options[expInfo['monitor']]
+sizeIs=monitorSelected["sizeIs"] # 1024
+screen_width=monitorSelected["screen_width"] #31 asuSs 14 # actual size of my screen in cm is 28x17
+screen_height=monitorSelected["screen_height"] #28 # 16.5 asus
+screen_distance=monitorSelected["screen_distance"] #60 # 57 asus
 # define monitor
-labMon=monitors.Monitor('labMon', width=screen_width, distance=screen_distance)
-labMon.setSizePix((sizeIs, sizeIs))
-asusZenbook14=monitors.Monitor('asus', width=screen_width, distance=screen_distance)
-asusZenbook14.setSizePix((sizeIs, sizeIs))
-#labMonitor.setgamma(2.4)4
-#labMonitor.setwhite([0.95, 0.95, 0.95])  # Example white point with slightly lower values
-#labMonitor=monitors.Monitor('labMon', width=37, distance=57)
+mon=monitors.Monitor(expInfo['monitor'], width=screen_width, distance=screen_distance)
+mon.setSizePix((sizeIs, sizeIs))
+
 win = visual.Window(size=(sizeIs,sizeIs),
                      fullscr=True, 
-                     monitor=asusZenbook14, 
+                     monitor=mon, 
                     units='pix', 
                     color=[0, 0, 0],
                       useFBO=True,
@@ -199,13 +202,12 @@ noiseQuantity=120
 """             Welcome screen to give instructions to the participant         """
 # Welcome screen
 welcomeTextt="""
-Welcome to the experiment your aim is to 
-follow the blob with your mouse.
+Welcome to the experiment.
 In the beginning of each trial you will see a fixation cross
 Then you will see a blob moving around the screen
-You will be asked to follow the blob with you eyes.
+You will be asked to follow the center of the blob with you eyes.
 Secondly, you need to continuously judge the difficulty of the task.
-Every milisecond you need to think about how well you are following the blob compared to the previous milisecond.
+Every moment you need to think about how well you are following compared to the previous moment.
 If you think you are doing it better you should slide the pen to upwards and if you think you are doing worse you should slide the pen downwards.
 """
 def display_welcome_screen(text=welcomeTextt):
@@ -225,7 +227,7 @@ def display_welcome_screen(text=welcomeTextt):
     if 'escape' in key:
         win.close()
 
-display_welcome_screen(text="Welcome to the experiment, If you want to load exp press anykey")
+display_welcome_screen(text="Welcome to the experiment!s")
 
 # Brownian motion properties
 blob_motion_std=arcmin_to_px(arcmin=2,h=screen_height,d=screen_distance,r=field_size[0])  # Standard deviation of Gaussian white noise velocities
@@ -252,13 +254,13 @@ def generateBlob(blob_width):
 def generateBrownianMotion(field_size, velocity_std, duration):
     # Generate random velocity for each frame
     num_frames = int(duration * expectedFrameRate)+toleranceTrialN # add 600 frames to the duration
-    velocies_x=np.random.normal(0, velocity_std*2, num_frames)
-    velocies_y=np.random.normal(0, velocity_std/1.5, num_frames)
+    velocies_x=np.random.normal(0, velocity_std*1.5, num_frames)
+    velocies_y=np.random.normal(0, velocity_std/2, num_frames)
     # new positions = old position + velocity
     pos_x = np.cumsum(velocies_x)
     pos_y = np.cumsum(velocies_y)
     # clip positions to stay within the field
-    cutOff=(field_size/4)*1.75
+    cutOff=(field_size/4)*1.70
     pos_x = np.clip(pos_x, -cutOff, cutOff )
     pos_y = np.clip(pos_y, -cutOff, cutOff )
     return (pos_x, pos_y)
@@ -268,7 +270,7 @@ def generateBrownianMotion(field_size, velocity_std, duration):
 #region [rgba(11, 89, 23, 0.23)]
 
 """ --------------- SIGMA DRIFT ----------------------         """
-def generateWalkofSigmaDifficulty(meanSigma=15, velocity_std=1, duration=20, minSigma=5, maxSigma=35):
+def generateWalkofSigmaDifficulty(meanSigma=15, velocity_std=1, duration=20, minSigma=5, maxSigma=35,incre=None):
     num_frames = int(duration * expectedFrameRate) + toleranceTrialN
     #increments=[]
     # initK=-1.01
@@ -278,7 +280,7 @@ def generateWalkofSigmaDifficulty(meanSigma=15, velocity_std=1, duration=20, min
     #     increments.append(initK)
     # increments = np.array(increments)
     #increments = np.array([-1.0, -0.9, -0.8, -0.7, -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
-    increments=np.array([-1.75,-1.5,-1.25,-1.0,-0.75,-0.5,-0.25,0.25,0.5,0.75,1.0,1.25,1.5,1.75])
+    #increments=np.array([-1.75,-1.5,-1.25,-1.0,-0.75,-0.5,-0.25,0.25,0.5,0.75,1.0,1.25,1.5,1.75])
     #increments=np.array([-0.5,-0.25,0.25,0.5])
     sigma_width = np.zeros(num_frames)
     sigma_width[0] = meanSigma  # Start from the meanSigma
@@ -294,6 +296,15 @@ def generateWalkofSigmaDifficulty(meanSigma=15, velocity_std=1, duration=20, min
             sigma_width[i] = sigma_width[i-1] + np.random.choice(valid_increments)
     return sigma_width
 
+initK=-1.6
+increments=[]
+minIncrement=0.1
+deltaBlobs=[-0.3,-0.2,-0.1,0.1,0.2,0.3]
+for i in range(31):
+    initK=round(initK+minIncrement,1)
+    increments.append(initK)
+increments = np.array(increments)
+
 # draw text loading
 loadingText=visual.TextStim(win, text='Loading...', color='red', units='pix', height=20)
 loadingText.draw()
@@ -303,7 +314,7 @@ noise_obj = noise_gen.create_visual_objects(win)# Generate and draw noise object
 
 # Generate sigma drift for all possible sigmas in the experiment
 minBlobExp=7
-maxBlobExp=50
+maxBlobExp=40
 rangeTrial=(maxBlobExp-minBlobExp)//2
 conditions= create_conditions(numOfBlocks=1, blob_widths=[minBlobExp,(minBlobExp+rangeTrial//2),minBlobExp+rangeTrial], repeats=5)
 #conditions= create_conditions(numOfBlocks=1, blob_widths=[13,17.5,22], repeats=1)
@@ -311,8 +322,7 @@ initial_blob_std= arcmin_to_px(arcmin=minBlobExp,h=screen_height,d=screen_distan
 total_lum=200*(2*np.pi*initial_blob_std ** 2)*1 # Total luminance of blobm
 
 blobs=[]
-increments=0.25
-allPossibleSigma=np.arange(minBlobExp, maxBlobExp+increments*1, increments)
+allPossibleSigma=np.arange(minBlobExp, maxBlobExp+minIncrement*1, minIncrement)
 for sigma in allPossibleSigma:
     blobs.append(np.array(generateBlob(arcmin_to_px(arcmin=sigma,h=screen_height,d=screen_distance,r=field_size[0]))))
 blobs=np.array(blobs)
@@ -385,7 +395,7 @@ conditions=sorted(conditions,reverse=True)
 from random import shuffle
 #region [rgba(20, 184, 196, 0.23)]
 shuffle(conditions)
-trainingN=0
+trainingN=5
 numTrails=len(conditions)+trainingN
 while trialNum < numTrails and not endExpNow:
     leftTrialsText=visual.TextStim(win, text='Trial: '+str(trialNum+1)+'/'+str(numTrails), color='red', units='pix', height=20, pos=(0,win.size[1]/8))
@@ -400,7 +410,7 @@ while trialNum < numTrails and not endExpNow:
 
     sigmaDynamic=generateWalkofSigmaDifficulty(meanSigma=minBlobWidth+(maxBlobExp-minBlobExp)//6,
                                                 minSigma=minBlobWidth, 
-                                                maxSigma=maxSgima,velocity_std=1, duration=expectedDuration)
+                                                maxSigma=maxSgima,velocity_std=1, duration=expectedDuration, incre=increments)
     # print(sigmaDynamic[:100])
     # print(sigmaDynamic.min())
     # print(sigmaDynamic.max())
@@ -425,7 +435,7 @@ while trialNum < numTrails and not endExpNow:
                 continue
         # redo the last blob_width
         continue
-    else:
+    if redoTrial==False:
         sigma_trials.append(minBlobWidth)
     _space2pass_allKeys = []
     space2pass.keys = []
@@ -441,6 +451,8 @@ while trialNum < numTrails and not endExpNow:
         _space2pass_allKeys.extend(theseKeys)
         if len(_space2pass_allKeys)>0:
             haveRest=False
+
+    
 
     mouse.setPos((0,0))
     # set a timer for the next line record the time spent
@@ -525,7 +537,7 @@ while trialNum < numTrails and not endExpNow:
         blob_obj = blobVisualObjsDict[round(sigmaDynamic[realFrameN],1)]
         #print(sigmaDynamic[realFrameN])
 
-        if realFrameN>len(pos_x_obj)-2:
+        if realFrameN>len(pos_x_obj)-10:
             redoTrial=True
             break            
         realFrameN=realFrameN+1
