@@ -4,7 +4,7 @@
 # ENS-PSL LSP, Cognitice Science Masters 2nd year thesis project
 # Supervisors: Guido Maiello and Pascal Mamassian
 
-response_type="both"
+response_type="mouse"
 
 if response_type=="both" or response_type=="eye":
     defaultMonitor='labMon'
@@ -85,9 +85,9 @@ filename = _thisDir + os.sep + u'data/p%s_%s_%s_%s_%s' % (expInfo['participant']
 monitor_options = {
     "asus": {
         "sizeIs": 1024,
-        "screen_width": 16,
-        "screen_height": 16,
-        "screen_distance": 60
+        "screen_width": 16.6,
+        "screen_height": 16.6,
+        "screen_distance": 50
     },
     "labMon": {
         "sizeIs": 1024,
@@ -106,7 +106,7 @@ mon=monitors.Monitor(expInfo['monitor'], width=screen_width, distance=screen_dis
 mon.setSizePix((sizeIs, sizeIs))
 
 win = visual.Window(size=(sizeIs,sizeIs),
-                     fullscr=True, 
+                     fullscr=False, 
                      monitor=mon, 
                     units='pix', 
                     color=[0, 0, 0],
@@ -301,7 +301,7 @@ increments=[]
 minIncrement=0.1
 deltaBlobs=[-0.3,-0.2,-0.1,0.1,0.2,0.3]
 for i in range(31):
-    initK=round(initK+minIncrement,1)
+    initK=round(initK+minIncrement,2)
     increments.append(initK)
 increments = np.array(increments)
 
@@ -331,7 +331,7 @@ blobs = (blobs - blobs.min()) / (blobs.max() - blobs.min())*2-1
 blobVisualObjsDict={}
 for i,sigma in enumerate(allPossibleSigma):
     blobMask=blobs[i]
-    blobVisualObjsDict[round(sigma,1)]=visual.GratingStim(win, tex=None, mask=blobs[i],  units='pix', interpolate=False)
+    blobVisualObjsDict[round(sigma,2)]=visual.GratingStim(win, tex=None, mask=blobs[i],  units='pix', interpolate=False)
 
 
 # draw loading complete
@@ -397,16 +397,17 @@ from random import shuffle
 shuffle(conditions)
 trainingN=5
 numTrails=len(conditions)+trainingN
+
 while trialNum < numTrails and not endExpNow:
     leftTrialsText=visual.TextStim(win, text='Trial: '+str(trialNum+1)+'/'+str(numTrails), color='red', units='pix', height=20, pos=(0,win.size[1]/8))
     if trialNum<trainingN:
         blob_width = minBlobExp
         minBlobWidth = blob_width
-        maxSgima = round(maxBlobExp,)
+        maxSgima = round(maxBlobExp,2)
     else:
         blob_width = conditions[trialNum-trainingN]
         minBlobWidth = blob_width#conditions[trialNum]
-        maxSgima= round((minBlobWidth+(maxBlobExp-minBlobExp)/2),1)
+        maxSgima= round((minBlobWidth+(maxBlobExp-minBlobExp)/2),2)
 
     sigmaDynamic=generateWalkofSigmaDifficulty(meanSigma=minBlobWidth+(maxBlobExp-minBlobExp)//6,
                                                 minSigma=minBlobWidth, 
@@ -534,7 +535,7 @@ while trialNum < numTrails and not endExpNow:
     randomBlob = (randomBlob - randomBlob.min()) / (randomBlob.max() - randomBlob.min())*2-1
 
     while continueRoutine:
-        blob_obj = blobVisualObjsDict[round(sigmaDynamic[realFrameN],1)]
+        blob_obj = blobVisualObjsDict[round(sigmaDynamic[realFrameN],2)]
         #print(sigmaDynamic[realFrameN])
 
         if realFrameN>len(pos_x_obj)-10:
