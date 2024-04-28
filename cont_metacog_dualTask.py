@@ -3,19 +3,26 @@
 # Start date: August 2023
 # ENS-PSL LSP, Cognitice Science Masters 2nd year thesis project
 # Supervisors: Guido Maiello and Pascal Mamassian
+
+response_type="mouse"
+
 eyeFeedback=False
 mouseResp=False
 eyeResp=False
 combinedResp=False
-response_type="eye"
 if response_type=="mouse":
     mouseResp=True
 elif response_type=="eye":
     eyeResp=True
 elif response_type=="both":
-    combinedResp=True   
+    combinedResp=True
 expectedFrameRate=60
 expectedDuration=20 # in seconds
+expectedFrames=expectedFrameRate*expectedDuration
+toleranceTrialN=300 
+
+# motor noise
+addMouseNoise=False
 
 from psychopy import visual, core, event
 import numpy as np
@@ -65,27 +72,45 @@ expInfo['psychopyVersion'] = psychopyVersion
 _thisDir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(_thisDir)
 # Data file name stem = absolute path + name; later add .psyexp, .csv, .log, etc
-filename = _thisDir + os.sep + u'data/%s_%s_%s_%s' % (expInfo['participant'],response_type, expName, expInfo['date'],)
-conditions= create_conditions(numOfBlocks=1, blob_widths=[11,17,25], repeats=5)
-#setup screen properties
-sizeIs=1024 # 1024
-screen_width=26.8 #31 asuSs 14 # actual size of my screen in cm is 28x17
-screen_height=26.8 # 16.5 asus
-screen_distance=60
+filename = _thisDir + os.sep + u'data/p%s_%s_%s_%s' % (expInfo['participant'],response_type, expName, expInfo['date'],)
+
+""" ------------setup screen properties---------"""
+monitor_options = {
+    "asusZenbook14": {
+        "sizeIs": 1024,
+        "screen_width": 16,
+        "screen_height": 16,
+        "screen_distance": 60
+    },
+    "labMon": {
+        "sizeIs": 1024,
+        "screen_width": 24.5,
+        "screen_height": 24.5,
+        "screen_distance": 60
+    }
+}
+monitorSpecs=monitor_options["asusZenbook14"]
+sizeIs=monitorSpecs["sizeIs"] # 1024
+screen_width=monitorSpecs["screen_width"] #31 asuSs 14 # actual size of my screen in cm is 28x17
+screen_height=monitorSpecs["screen_height"] #28 # 16.5 asus
+screen_distance=monitorSpecs["screen_distance"] #60 # 57 asus
 # define monitor
-labMonitor=monitors.Monitor('labMon', width=26.8, distance=57)
-labMonitor.setSizePix((sizeIs, sizeIs))
-myMon=monitors.Monitor('asusMon', width=26.8, distance=57)
-#labMonitor.setgamma(2.4)
+labMon=monitors.Monitor('labMon', width=screen_width, distance=screen_distance)
+labMon.setSizePix((sizeIs, sizeIs))
+asusZenbook14=monitors.Monitor('asus', width=screen_width, distance=screen_distance)
+asusZenbook14.setSizePix((sizeIs, sizeIs))
+#labMonitor.setgamma(2.4)4
 #labMonitor.setwhite([0.95, 0.95, 0.95])  # Example white point with slightly lower values
+#labMonitor=monitors.Monitor('labMon', width=37, distance=57)
 win = visual.Window(size=(sizeIs,sizeIs),
                      fullscr=True, 
-                     monitor=labMonitor, 
+                     monitor=asusZenbook14, 
                     units='pix', 
                     color=[0, 0, 0],
                       useFBO=True,
                       screen=0,
                       colorSpace='rgb')
+
 field_size=[sizeIs,sizeIs]
 ### Set the monitor to the correct distance and size
 #win.monitor.setSizePix(field_size)
@@ -109,7 +134,7 @@ frameTolerance = 0.001  # how close to onset before 'same' frame
 if response_type=="mouse":
     TRACKER = 'mouse'
 else:
-    TRACKER = 'pupilcore'
+    TRACKER = 'eyelink'
 BACKGROUND_COLOR = [0, 0, 0]
 devices_config = dict()
 eyetracker_config = dict(name='tracker')
@@ -126,29 +151,6 @@ elif TRACKER == 'eyelink':
     eyetracker_config['runtime_settings'] = dict(sampling_rate=2000, track_eyes='RIGHT')
     eyetracker_config['calibration'] = dict(screen_background_color=BACKGROUND_COLOR, auto_pace=True)
     devices_config['eyetracker.hw.sr_research.eyelink.EyeTracker'] = eyetracker_config
-
-elif TRACKER == 'pupilcore':
-    eyetracker_config['calibration'] = dict(screen_background_color=BACKGROUND_COLOR,
-                                            auto_pace=True,
-                                            target_attributes=dict(animate=dict(enable=True, expansion_ratio=1.5,
-                                                                                contract_only=False)))
-    devices_config['eyetracker.hw.pupil_labs.pupil_core.EyeTracker'] = {
-        'name': 'tracker',
-        'runtime_settings': {
-            'pupillometry_only': False,
-            'surface_name': 'psychopy_iohub_surface',
-            'confidence_threshold': 0.6,
-            'pupil_remote': {
-                'ip_address': '127.0.0.1',
-                'port': 50020.0,
-                'timeout_ms': 1000.0,
-            },
-            'pupil_capture_recording': {
-                'enabled': True,
-                'location': '',
-            }
-        }
-    }
 else:
     print("{} is not a valid TRACKER name; please use 'mouse', 'eyelink', 'gazepoint', or 'tobii'.".format(TRACKER))
     core.quit()
@@ -164,9 +166,9 @@ eyetracker = ioServer.getDevice('tracker')
 # create a default keyboard (e.g. to check for escape)
 defaultKeyboard = keyboard.Keyboard(backend='iohub')
 # Display calibration gfx window and run calibration.
-#if combinedResp or eyeResp:
-    #result = eyetracker.runSetupProcedure()
-    #print("Calibration returned: ", result)
+if combinedResp or eyeResp:
+    result = eyetracker.runSetupProcedure()
+    print("Calibration returned: ", result)
 
 
 calibrationTarget = visual.TargetStim(win, 
@@ -184,7 +186,6 @@ calibration = hardware.eyetracker.EyetrackerCalibration(win,
     targetLayout='NINE_POINTS', randomisePos=True, textColor='white',
     movementAnimation=True, targetDelay=1.0
 )
-calibration.run()
 
 ########################################################################################################################
 ### -------Initialize componens  for target tracking trial-------------------------
@@ -192,35 +193,39 @@ calibration.run()
 # Background noise
 # Noise properties
 noise_size = field_size  # Use the window size for noise texture
-noise_arcmin = 11  # Standard deviation for pixel noise || noise intensity Adjust to control noise intensity
+noise_arcmin = 5  # Standard deviation for pixel noise || noise intensity Adjust to control noise intensity
 noise_std =deg2pix(degrees=arcmin_to_dva(noise_arcmin),monitor=win.monitor) #arcmin_to_px(noise_arcmin,h=screen_height,d=screen_distance,r=field_size[0])# convert arcmin to std for Gaussian
 noiseQuantity=120
 """             Welcome screen to give instructions to the participant         """
 # Welcome screen
-welcomeText="""
+welcomeTextt="""
 Welcome to the experiment your aim is to 
 follow the blob with your mouse.
 In the beginning of each trial you will see a fixation cross
 Then you will see a blob moving around the screen
-You will be asked to follow the blob with your mouse 
+You will be asked to follow the blob with you eyes.
+Secondly, you need to continuously judge the difficulty of the task.
+Every milisecond you need to think about how well you are following the blob compared to the previous milisecond.
+If you think you are doing it better you should slide the pen to upwards and if you think you are doing worse you should slide the pen downwards.
 """
-welcomeText = visual.TextStim(win, text=welcomeText,
-                              color=[1, 1, 1], units='pix', height=20)
-welcomeText.draw()
-win.flip()
-noise_gen = NoiseGenerator(noise_size)
-noise_obj = noise_gen.create_visual_objects(win)# Generate and draw noise objects
-win.flip()
-# draw a text that indicate the participant to press space to continue
-pressText=visual.TextStim(win, text='Press any key to continue',
-                        pos=(0, -300),
-                        color='red',colorSpace='rgb',units='pix', height=20)
-welcomeText.draw()
-pressText.draw()
-win.flip()
+def display_welcome_screen(text=welcomeTextt):
+    welcomeText = visual.TextStim(win, text=text,
+                                  color=[1, 1, 1], units='pix', height=20)
+    welcomeText.draw()
+    win.flip()
 
-event.waitKeys()
-win.flip()
+    # draw a text that indicate the participant to press space to continue
+    pressText=visual.TextStim(win, text='Press any key to continue',
+                            pos=(0, -300),
+                            color='red',colorSpace='rgb',units='pix', height=20)
+    welcomeText.draw()
+    pressText.draw()
+    win.flip()
+    key=event.waitKeys()
+    if 'escape' in key:
+        win.close()
+
+display_welcome_screen(text="Welcome to the experiment, If you want to load exp press anykey")
 
 # Brownian motion properties
 blob_motion_std=arcmin_to_px(arcmin=2,h=screen_height,d=screen_distance,r=field_size[0])  # Standard deviation of Gaussian white noise velocities
@@ -231,51 +236,118 @@ routineTimer = core.Clock()  # to track time remaining of each (possibly non-slâ
 
 ####################### Blob Generation #######################
 # Blob properties
-initial_blob_std= arcmin_to_px(arcmin=11,h=screen_height,d=screen_distance,r=field_size[0]) 
-total_lum=1*(2*np.pi*initial_blob_std ** 2)*1 # Total luminance of blobm
-def generateBlob(space_constant):
+
+def generateBlob(blob_width):
     blob_std=arcmin_to_px(arcmin=blob_width,h=screen_height,d=screen_distance,r=field_size[0])
     blob_amplitude =total_lum / (2*np.pi*blob_std ** 2) # Adjust blob amplitude to keep total blob energy constant
     y, x = np.meshgrid(np.arange(noise_size[1]), np.arange(noise_size[0]))
-    blob = blob_amplitude * np.exp(-((x - noise_size[0] / 2)**2 + (y - noise_size[1] / 2)**2) / (2 * blob_std**2))
+    blob = blob_amplitude * np.exp(-((x - noise_size[0] / 2)**2 + (y - noise_size[1] / 2)**2) / (2* blob_std**2))
     #blob = (blob - blob.min()) / (blob.max() - blob.min())*2-1 # normalize the blob
     return blob
-# create blobs for each of the conditions
-blob_widths=list(set(conditions))#[11,13,17,21,25,29]
-blobs=[]
-
-
-for blob_width in blob_widths:
-    blobs.append(np.array(generateBlob(arcmin_to_px(arcmin=blob_width,h=screen_height,d=screen_distance,r=field_size[0]))))
-blobs=np.array(blobs)
-blobs = (blobs - blobs.min()) / (blobs.max() - blobs.min())*2-1
-# create dictionary for each blob_width
-blob_dict={}
-for i in range(len(blob_widths)):
-    blob_dict[blob_widths[i]]=blobs[i]
 
 
 
-expectedFrames=expectedFrameRate*expectedDuration
-toleranceTrialN=300 
 """                         BLOB MOTION                """ 
 # Blob motion by changing velocity on x and y axis according to the brownian motion
 def generateBrownianMotion(field_size, velocity_std, duration):
     # Generate random velocity for each frame
     num_frames = int(duration * expectedFrameRate)+toleranceTrialN # add 600 frames to the duration
-    velocies_x=np.random.normal(0, velocity_std, num_frames)
-    velocies_y=np.random.normal(0, velocity_std, num_frames)
+    velocies_x=np.random.normal(0, velocity_std*2, num_frames)
+    velocies_y=np.random.normal(0, velocity_std/1.5, num_frames)
     # new positions = old position + velocity
     pos_x = np.cumsum(velocies_x)
     pos_y = np.cumsum(velocies_y)
     # clip positions to stay within the field
-    pos_x = np.clip(pos_x, -field_size/2, field_size/2 )
-    pos_y = np.clip(pos_y, -field_size/2, field_size/2 )
+    cutOff=(field_size/4)*1.75
+    pos_x = np.clip(pos_x, -cutOff, cutOff )
+    pos_y = np.clip(pos_y, -cutOff, cutOff )
     return (pos_x, pos_y)
     
+
+
+#region [rgba(11, 89, 23, 0.23)]
+
+""" --------------- SIGMA DRIFT ----------------------         """
+def generateWalkofSigmaDifficulty(meanSigma=15, velocity_std=1, duration=20, minSigma=5, maxSigma=35,incre=None):
+    num_frames = int(duration * expectedFrameRate) + toleranceTrialN
+    #increments=[]
+    # initK=-1.01
+    # increments=[]
+    # for i in range(201):
+    #     initK=round(initK+0.01,2)
+    #     increments.append(initK)
+    # increments = np.array(increments)
+    #increments = np.array([-1.0, -0.9, -0.8, -0.7, -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
+    #increments=np.array([-1.75,-1.5,-1.25,-1.0,-0.75,-0.5,-0.25,0.25,0.5,0.75,1.0,1.25,1.5,1.75])
+    #increments=np.array([-0.5,-0.25,0.25,0.5])
+    sigma_width = np.zeros(num_frames)
+    sigma_width[0] = meanSigma  # Start from the meanSigma
+
+    for i in range(1, num_frames):
+        # Filter increments to only those that do not push sigma_width out of bounds
+        valid_increments = increments[(sigma_width[i-1] + increments >= minSigma) & (sigma_width[i-1] + increments <= maxSigma)]
+        if valid_increments.size == 0:
+            # If no valid increments, maintain current position
+            sigma_width[i] = sigma_width[i-1]
+        else:
+            # Randomly choose from the valid increments
+            sigma_width[i] = sigma_width[i-1] + np.random.choice(valid_increments)
+    return sigma_width
+
+initK=-1.1
+increments=[]
+minIncrement=0.1
+deltaBlobs=[-0.3,-0.2,-0.1,0.1,0.2,0.3]
+for i in range(21):
+    initK=round(initK+minIncrement,1)
+    increments.append(initK)
+increments = np.array(increments)
+#increments=np.array([-1.0,-0.75,-0.5,-0.25,0.25,0.5,0.75,1.0])
+
+# draw text loading
+loadingText=visual.TextStim(win, text='Loading...', color='red', units='pix', height=20)
+loadingText.draw()
+win.flip()
+noise_gen = NoiseGenerator(noise_size,noise_quantity=noiseQuantity)
+noise_obj = noise_gen.create_visual_objects(win)# Generate and draw noise objects
+
+# Generate sigma drift for all possible sigmas in the experiment
+minBlobExp=7
+maxBlobExp=30
+rangeTrial=(maxBlobExp-minBlobExp)//2
+conditions= create_conditions(numOfBlocks=1, blob_widths=[minBlobExp,(minBlobExp+rangeTrial//2),minBlobExp+rangeTrial], repeats=5)
+#conditions= create_conditions(numOfBlocks=1, blob_widths=[13,17.5,22], repeats=1)
+initial_blob_std= arcmin_to_px(arcmin=minBlobExp,h=screen_height,d=screen_distance,r=field_size[0]) 
+total_lum=200*(2*np.pi*initial_blob_std ** 2)*1 # Total luminance of blobm
+
+blobs=[]
+allPossibleSigma=np.arange(minBlobExp-minIncrement*3, maxBlobExp+minIncrement*4, minIncrement)
+for sigma in allPossibleSigma:
+    blobs.append(np.array(generateBlob(arcmin_to_px(arcmin=sigma,h=screen_height,d=screen_distance,r=field_size[0]))))
+blobs=np.array(blobs)
+blobs = (blobs - blobs.min()) / (blobs.max() - blobs.min())*2-1
+
+blobVisualObjsDict={}
+for i,sigma in enumerate(allPossibleSigma):
+    blobMask=blobs[i]
+    blobVisualObjsDict[round(sigma,1)]=visual.GratingStim(win, tex=None, mask=blobs[i],  units='pix', interpolate=False)
+
+
+# draw loading complete
+win.flip()
+loadingText.text='Loading complete'
+loadingText.draw()
+win.flip()
+event.waitKeys()
+
+# endregion
+display_welcome_screen()
+
+
 ##            OBSERVER POINTER     
 #         """
-sizePointer=arcmin_to_px(arcmin=15,h=screen_height,d=screen_distance,r=field_size[0])
+sizePointer=arcmin_to_px(arcmin=10,h=screen_height,d=screen_distance,r=field_size[0])
+#sizePointer=5
 obs_pointer = visual.Circle(win, radius=sizePointer, fillColor='red',colorSpace='rgb', units='pix',size=0.30)
 ##    fixation cross for the beginning of the trial (before start of the trial )  
 fixationCross=visual.TextStim(win, text='+', color=[1, 1, 1], units='pix', height=20)
@@ -301,6 +373,9 @@ allRawMx = []
 allRawMy = []
 jumped=False
 looksAway=False
+### sigma data
+allRawStimSigma=[]
+allSigmaStim=[]
 
 ## --- define have a rest screen ###
 trialNum=0
@@ -315,13 +390,35 @@ win.setMouseVisible(False)
 redoTrialText=visual.TextStim(win, text='Did you get distracted in last trial?\n Well now you need to redo do trial or press C to recalibrate or N to just go ahead!', color=[1, 1, 1], units='pix', height=20)
 redoTrial=False
 calibOkText=visual.TextStim(win, text='Is Calibration done? Are you ready to continue? (Y/N)', color=[1, 1, 1], units='pix', height=20)
-#conditions=sorted(conditions)
-#shuffle conditions
+conditions=sorted(conditions)
 from random import shuffle
-shuffle(conditions)
 #region [rgba(20, 184, 196, 0.23)]
-while trialNum < len(conditions) and not endExpNow:
-    blob_width = conditions[trialNum]
+#shuffle(conditions)
+trainingN=5
+numTrails=len(conditions)+trainingN
+while trialNum < numTrails and not endExpNow:
+    leftTrialsText=visual.TextStim(win, text='Trial: '+str(trialNum+1)+'/'+str(numTrails), color='red', units='pix', height=20, pos=(0,win.size[1]/8))
+    if trialNum<trainingN:
+        blob_width = minBlobExp
+        minBlobWidth = blob_width
+        maxSgima = round(maxBlobExp,)
+    else:
+        blob_width = conditions[trialNum-trainingN]
+        minBlobWidth = blob_width#conditions[trialNum]
+        maxSgima= round((minBlobWidth+(maxBlobExp-minBlobExp)/2),1)
+
+    sigmaDynamic=generateWalkofSigmaDifficulty(meanSigma=minBlobWidth+(maxBlobExp-minBlobExp)//6,
+                                                minSigma=minBlobWidth, 
+                                                maxSigma=maxSgima,velocity_std=1, duration=expectedDuration, incre=increments)
+    
+    sigmaDynamic2=generateWalkofSigmaDifficulty(meanSigma=minBlobWidth+(maxBlobExp-minBlobExp)//6,
+                                                minSigma=minBlobWidth, 
+                                                maxSigma=maxSgima,velocity_std=1, duration=expectedDuration, incre=increments)
+    
+    sigmaDynamic2=sigmaDynamic2+np.random.choice(deltaBlobs, size=sigmaDynamic2.shape)
+    # print(sigmaDynamic[:100])
+    # print(sigmaDynamic.min())
+    # print(sigmaDynamic.max())
     if redoTrial:
         redoTrialText.draw()
         win.flip()
@@ -344,7 +441,7 @@ while trialNum < len(conditions) and not endExpNow:
         # redo the last blob_width
         continue
     else:
-        sigma_trials.append(blob_width)
+        sigma_trials.append(minBlobWidth)
     _space2pass_allKeys = []
     space2pass.keys = []
     space2pass.clearEvents(eventType='keyboard')
@@ -353,6 +450,7 @@ while trialNum < len(conditions) and not endExpNow:
     haveRest=True
     while haveRest:
         haveRestText.draw()
+        leftTrialsText.draw()
         win.flip()
         theseKeys = space2pass.getKeys(keyList=['space'])
         _space2pass_allKeys.extend(theseKeys)
@@ -362,19 +460,19 @@ while trialNum < len(conditions) and not endExpNow:
     mouse.setPos((0,0))
     # set a timer for the next line record the time spent
     tStart = globalClock.getTime()
-    # clear all drawings
-    #print(blob_width)
-    blob_std=arcmin_to_px(arcmin=blob_width,h=screen_height,d=screen_distance,r=field_size[0])
-    # create blob
-    blob=blob_dict[blob_width]
-    blob_obj = visual.GratingStim(win, tex=None, mask=blob,  units='pix', interpolate=False)
-    
+
     mouse.setPos(newPos=(0,0))
     win.flip(clearBuffer=True)
     # create blob motion positions
     pos_x_obj, pos_y_obj = generateBrownianMotion(field_size=noise_size[0], velocity_std=blob_motion_std, duration=expectedDuration)# pre-generate brownian motion
     pos_x_obj=np.insert(pos_x_obj,0,0)
     pos_y_obj=np.insert(pos_y_obj,0,0)
+
+    pos_x_obj2, pos_y_obj2 = generateBrownianMotion(field_size=noise_size[0], velocity_std=blob_motion_std, duration=expectedDuration)# pre-generate brownian motion
+    #pos_x_obj2 = pos_x_obj + np.random.normal(0,1)#np.random.choice(increments, size=pos_x_obj.shape)
+    #pos_y_obj2 = pos_y_obj + np.random.normal(0,1)#np.random.choice(increments, size=pos_y_obj.shape)
+    pos_x_obj2=np.insert(pos_x_obj2,0,0)
+    pos_y_obj2=np.insert(pos_y_obj2,0,0)
     # append blob positions for each trial
     all_blob_x.append(pos_x_obj)
     all_blob_y.append(pos_y_obj)
@@ -395,11 +493,11 @@ while trialNum < len(conditions) and not endExpNow:
         fixationCross.draw()
         win.flip()
     # draw the stimulus
-    blob_obj.setAutoDraw(True)
+    #blob_obj.setAutoDraw(True)
     mouse.setVisible(False)
     # draw observation pointer
     if mouseResp or combinedResp or eyeFeedback:
-        obs_pointer.setAutoDraw(True)
+        obs_pointer.setAutoDraw(False)
     else:
         obs_pointer.setAutoDraw(False)
     # all eye responses
@@ -415,17 +513,24 @@ while trialNum < len(conditions) and not endExpNow:
     rawGazeX=[]
     rawGazeY=[]
 
+    # all stimulus sigmas
+    stim_sigma=np.empty((expectedFrames))
+    rawStimSigma=[]
     # all stimulus positions
     stim_x=np.empty((expectedFrames))
     stim_y=np.empty((expectedFrames))
     mouse_v=np.empty((expectedFrames))
     rawStimX=[]
     rawStimY=[]
+    rawStimX2=[]
+    rawStimY2=[]
+    rawStimHitX=[]
+    rawStimHitY=[]
     checkPointX=0
     checkPointY=0
 
-    jumpTreshold=dva_to_px(size_in_deg=2 ,h=screen_height,d=screen_distance,r=field_size[0])
-    print(jumpTreshold)
+    jumpTreshold=dva_to_px(size_in_deg=2,h=screen_height,d=screen_distance,r=field_size[0])
+    #print(jumpTreshold)
     looksAwayTreshold=dva_to_px(size_in_deg=5,h=screen_height,d=screen_distance,r=field_size[0])
     wrongGazePointer= visual.Circle(win, radius=10, fillColor='black',colorSpace='rgb', units='pix',size=0.30)
     #jumpTreshold=arcmin_to_px(arcmin=blob_width*10,h=screen_height,d=screen_distance,r=field_size[0])
@@ -437,16 +542,46 @@ while trialNum < len(conditions) and not endExpNow:
     #region [rgba(206, 10, 118, 0.14)]
     ##################### Trial Start #####################
     eyetracker.setRecordingState(True)  # start recording of gaze
+
+    randomBlob=np.array(generateBlob(arcmin_to_px(arcmin=11,h=screen_height,d=screen_distance,r=field_size[0])))
+    randomBlob = (randomBlob - randomBlob.min()) / (randomBlob.max() - randomBlob.min())*2-1
+
     while continueRoutine:
+        blob_obj = blobVisualObjsDict[round(sigmaDynamic[realFrameN],1)]
+        blob_obj2 = blobVisualObjsDict[round(sigmaDynamic2[realFrameN],1)]
+        #print(sigmaDynamic[realFrameN])
+
         if realFrameN>len(pos_x_obj)-2:
             redoTrial=True
             break            
         realFrameN=realFrameN+1
         random_noise_index = int(randint(0, noiseQuantity))
+
         noise_obj[random_noise_index].draw()    # draw noise
-        blob_obj.setPos((pos_x_obj[realFrameN], pos_y_obj[realFrameN]))
+
+        while pos_x_obj[realFrameN]-pos_x_obj2[realFrameN]<arcmin_to_px(arcmin=2,h=screen_height,d=screen_distance,r=field_size[0]):
+            pos_x_obj2[realFrameN]=pos_x_obj2[realFrameN]+randint(-3,3)
+        blob_obj2.setPos((pos_x_obj2[realFrameN]-50, pos_y_obj2[realFrameN]+50))
+        blob_obj2.draw()
+        blob_obj.setPos((pos_x_obj[realFrameN]+50, pos_y_obj[realFrameN]-50))
+        blob_obj.draw()
+
+        # Position of the correct blob is determined by the following algorithm
+        # if the sigmaDynamic2 is less than sigmaDynamic then the correct blob is the blob_obj2 the correct position is pos_x_obj2 vice versa
+        if sigmaDynamic2[realFrameN]<sigmaDynamic[realFrameN]:
+            pos_x_hit = pos_x_obj2
+            pos_y_hit = pos_y_obj2
+        else:
+            pos_x_hit = pos_x_obj
+            pos_y_hit = pos_y_obj
+
         rawStimX.append(pos_x_obj[realFrameN])
         rawStimY.append(pos_y_obj[realFrameN])
+        rawStimX2.append(pos_x_obj2[realFrameN])
+        rawStimY2.append(pos_y_obj2[realFrameN])
+        rawStimHitX.append(pos_x_hit[realFrameN])
+        rawStimHitY.append(pos_y_hit[realFrameN])
+
         #frameN+= 1  # number of completed frames (so 0 is the first frame)
         if eyeResp or combinedResp:
             # Get the latest gaze position in display coord space.
@@ -484,13 +619,20 @@ while trialNum < len(conditions) and not endExpNow:
                 obs_pointer.setPos((gX,gY))
         rawMx.append(mouse.getPos()[0])
         rawMy.append(mouse.getPos()[1])
+        rawStimSigma.append(sigmaDynamic[realFrameN])
+
         if combinedResp:
             obs_pointer.setPos(mouse.getPos())
-            if not jumped and not looksAway or valid_gaze_pos:
+            if not jumped and not looksAway and valid_gaze_pos:
                 mX[frameN]=mouse.getPos()[0]
                 mY[frameN]=mouse.getPos()[1]
+                stim_sigma[frameN]=sigmaDynamic[realFrameN]
         elif mouseResp:
-            obs_pointer.setPos(mouse.getPos())
+            stim_sigma[frameN]=sigmaDynamic[realFrameN]
+            if addMouseNoise:
+                obs_pointer.setPos((mouse.getPos()[0]+np.random.normal(0,2),mouse.getPos()[1]+np.random.normal(0,2)))
+            else:
+                obs_pointer.setPos(mouse.getPos())
             frameN+=1
             mX[frameN]=mouse.getPos()[0]
             mY[frameN]=mouse.getPos()[1]
@@ -518,9 +660,9 @@ while trialNum < len(conditions) and not endExpNow:
     elif redoTrial:
         continue
     t = routineTimer.getTime()
-    print("time of finish: "+str(t))
-    print("Maximum frame achieved "+str(frameN))
-    print("Maximum realFrame achieved "+str(realFrameN))
+    # print("time of finish: "+str(t))
+    # print("Maximum frame achieved "+str(frameN))
+    # print("Maximum realFrame achieved "+str(realFrameN))
 
     # save positions of target, mouse, and but first calculate velocities
     if eyeResp:
@@ -579,6 +721,14 @@ while trialNum < len(conditions) and not endExpNow:
     allRawMx.append(rawMx)
     allRawMy.append(rawMy)
 
+    stim_sigma = np.array(stim_sigma)
+    stim_sigma = np.insert(stim_sigma, 0, minBlobWidth)
+    allSigmaStim.append(stim_sigma)
+
+    allRawStimSigma=np.array(rawStimSigma)
+    allRawStimSigma=np.insert(allRawStimSigma,0,minBlobExp)
+
+
 
     space2pass.keys = None
 
@@ -610,10 +760,22 @@ conditions=np.array(conditions)
 conditions=conditions.T
 filename = u'data/%s_%s_%s_%s' % (expInfo['participant'], response_type,expName, expInfo['date'])
 if eyeResp:
-    sio.savemat(filename+'.mat', {'eyeX': allEyeX, 'eyeY': allEyeY, 'blob_x': all_stim_x, 'blob_y': all_stim_y, 'sigma': sigma_trials,'rawGazeX':allRawGazeX,'rawGazeY':allRawGazeY,'rawStimX':allRawStimX,'rawStimY':allRawStimY})
+    sio.savemat(filename+'.mat', {'eyeX': allEyeX, 'eyeY': allEyeY, 'blob_x': all_stim_x, 'blob_y': all_stim_y, 'sigma': sigma_trials,
+                                  'rawGazeX':allRawGazeX,'rawGazeY':allRawGazeY,
+                                  'rawStimX':allRawStimX,'rawStimY':allRawStimY})
 elif mouseResp:
-    sio.savemat(filename+'.mat', {'mouse_x': all_mouse_x, 'mouse_y': all_mouse_y, 'blob_x': all_stim_x, 'blob_y': all_stim_y, 'sigma': sigma_trials})
+    sio.savemat(filename+'.mat', {'mouse_x': all_mouse_x, 'mouse_y': all_mouse_y, 'blob_x': all_stim_x, 'blob_y': all_stim_y, 'sigma': sigma_trials,
+                                  'eyeX': all_mouse_x,
+                                  'dynamicSigma':allSigmaStim,'rawSigmas':allRawStimSigma,
+                                  'rawGazeX':allRawGazeX,'rawGazeY':allRawGazeY,
+                                  'rawMouseX':allRawMx,'rawMouseY':allRawMy,
+                                  'rawStimX':allRawStimX,'rawStimY':allRawStimY})
 elif combinedResp:
-    sio.savemat(filename+'.mat', {'eyeX': allEyeX, 'eyeY': allEyeY, 'mouse_x': all_mouse_x, 'mouse_y': all_mouse_y, 'blob_x': all_stim_x, 'blob_y': all_stim_y, 'sigma': sigma_trials,'rawGazeX':allRawGazeX,'rawGazeY':allRawGazeY,'rawMouseX':allRawMx,'rawMouseY':allRawMy,'rawStimX':allRawStimX,'rawStimY':allRawStimY})
+    sio.savemat(filename+'.mat', {'eyeX': allEyeX, 'eyeY': allEyeY, 
+                                  'mouse_x': all_mouse_x, 'mouse_y': all_mouse_y, 'blob_x': all_stim_x, 'blob_y': all_stim_y,'sigma': sigma_trials,
+                                  'dynamicSigma':allSigmaStim,'rawSigmas':allRawStimSigma,
+                                  'rawGazeX':allRawGazeX,'rawGazeY':allRawGazeY,
+                                  'rawMouseX':allRawMx,'rawMouseY':allRawMy,
+                                  'rawStimX':allRawStimX,'rawStimY':allRawStimY})
 
 core.quit()

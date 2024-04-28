@@ -18,7 +18,7 @@ expectedFrameRate=60
 expectedDuration=20 # in seconds
 
 # motor noise
-addMouseNoise=True
+addMouseNoise=False
 
 from psychopy import visual, core, event
 import numpy as np
@@ -71,20 +71,37 @@ os.chdir(_thisDir)
 filename = _thisDir + os.sep + u'data/%s_%s_%s_%s' % (expInfo['participant'],response_type, expName, expInfo['date'],)
 conditions= create_conditions(numOfBlocks=1, blob_widths=[11,17,25], repeats=5)
 #setup screen properties
-sizeIs=1024 # 1024
-screen_width=35 #31 asuSs 14 # actual size of my screen in cm is 28x17
-screen_height=28 # 16.5 asus
-screen_distance=60
+
+monitor_options = {
+    "asusZenbook14": {
+        "sizeIs": 1024,
+        "screen_width": 15,
+        "screen_height": 15,
+        "screen_distance": 60
+    },
+    "labMon": {
+        "sizeIs": 1024,
+        "screen_width": 28,
+        "screen_height": 28,
+        "screen_distance": 60
+    }
+}
+monitorSpecs=monitor_options["asusZenbook14"]
+sizeIs=monitorSpecs["sizeIs"] # 1024
+screen_width=monitorSpecs["screen_width"] #31 asuSs 14 # actual size of my screen in cm is 28x17
+screen_height=monitorSpecs["screen_height"] #28 # 16.5 asus
+screen_distance=monitorSpecs["screen_distance"] #60 # 57 asus
 # define monitor
 labMonitor=monitors.Monitor('labMon', width=37, distance=57)
 labMonitor.setSizePix((sizeIs, sizeIs))
 myMon=monitors.Monitor('asusMon', width=31, distance=57)
+myMon.setSizePix((sizeIs, sizeIs))
 #labMonitor.setgamma(2.4)
 #labMonitor.setwhite([0.95, 0.95, 0.95])  # Example white point with slightly lower values
 selectedMon=myMon
 win = visual.Window(size=(sizeIs,sizeIs),
                      fullscr=True, 
-                     monitor=labMonitor , 
+                     monitor=myMon , 
                     units='pix', 
                     color=[0, 0, 0],
                       useFBO=True,
