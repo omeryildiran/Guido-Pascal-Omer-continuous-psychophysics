@@ -4,7 +4,7 @@
 # ENS-PSL LSP, Cognitice Science Masters 2nd year thesis project
 # Supervisors: Guido Maiello and Pascal Mamassian
 
-response_type="mouse"
+response_type="both"
 
 if response_type=="both" or response_type=="eye":
     defaultMonitor='labMon'
@@ -106,7 +106,7 @@ mon=monitors.Monitor(expInfo['monitor'], width=screen_width, distance=screen_dis
 mon.setSizePix((sizeIs, sizeIs))
 
 win = visual.Window(size=(sizeIs,sizeIs),
-                     fullscr=False, 
+                     fullscr=True, 
                      monitor=mon, 
                     units='pix', 
                     color=[0, 0, 0],
@@ -270,30 +270,26 @@ def generateBrownianMotion(field_size, velocity_std, duration):
 #region [rgba(11, 89, 23, 0.23)]
 
 """ --------------- SIGMA DRIFT ----------------------         """
-def generateWalkofSigmaDifficulty(meanSigma=15, velocity_std=1, duration=20, minSigma=5, maxSigma=35,incre=None):
+def generateWalkofSigmaDifficulty(initSigma=15, velocity_std=1, duration=20, minSigma=5, maxSigma=35,incre=None):
     num_frames = int(duration * expectedFrameRate) + toleranceTrialN
-    #increments=[]
-    # initK=-1.01
-    # increments=[]
-    # for i in range(201):
-    #     initK=round(initK+0.01,2)
-    #     increments.append(initK)
-    # increments = np.array(increments)
-    #increments = np.array([-1.0, -0.9, -0.8, -0.7, -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
-    #increments=np.array([-1.75,-1.5,-1.25,-1.0,-0.75,-0.5,-0.25,0.25,0.5,0.75,1.0,1.25,1.5,1.75])
-    #increments=np.array([-0.5,-0.25,0.25,0.5])
     sigma_width = np.zeros(num_frames)
+    meanSigma = round((maxSigma+minSigma)/2,2)  # Calculate the mean of the range
     sigma_width[0] = meanSigma  # Start from the meanSigma
 
     for i in range(1, num_frames):
+        # Calculate the drift towards the mean
+        drift = (meanSigma - sigma_width[i-1]) * 0.01
+        # Add the drift to the increments
+        adjusted_increments = increments + drift
         # Filter increments to only those that do not push sigma_width out of bounds
-        valid_increments = increments[(sigma_width[i-1] + increments >= minSigma) & (sigma_width[i-1] + increments <= maxSigma)]
+        valid_increments = adjusted_increments[(sigma_width[i-1] + adjusted_increments >= minSigma) & (sigma_width[i-1] + adjusted_increments <= maxSigma)]
         if valid_increments.size == 0:
             # If no valid increments, maintain current position
             sigma_width[i] = sigma_width[i-1]
         else:
             # Randomly choose from the valid increments
             sigma_width[i] = sigma_width[i-1] + np.random.choice(valid_increments)
+    sigma_width=sigma_width.round(1)
     return sigma_width
 
 initK=-1.6
@@ -301,7 +297,7 @@ increments=[]
 minIncrement=0.1
 deltaBlobs=[-0.3,-0.2,-0.1,0.1,0.2,0.3]
 for i in range(31):
-    initK=round(initK+minIncrement,2)
+    initK=round(initK+minIncrement,1)
     increments.append(initK)
 increments = np.array(increments)
 
@@ -317,6 +313,9 @@ minBlobExp=7
 maxBlobExp=40
 rangeTrial=(maxBlobExp-minBlobExp)//2
 conditions= create_conditions(numOfBlocks=1, blob_widths=[minBlobExp,(minBlobExp+rangeTrial//2),minBlobExp+rangeTrial], repeats=5)
+
+conditions=create_conditions(numOfBlocks=1, blob_widths=[11,19,28,40], repeats=5)
+
 #conditions= create_conditions(numOfBlocks=1, blob_widths=[13,17.5,22], repeats=1)
 initial_blob_std= arcmin_to_px(arcmin=minBlobExp,h=screen_height,d=screen_distance,r=field_size[0]) 
 total_lum=200*(2*np.pi*initial_blob_std ** 2)*1 # Total luminance of blobm
@@ -331,7 +330,7 @@ blobs = (blobs - blobs.min()) / (blobs.max() - blobs.min())*2-1
 blobVisualObjsDict={}
 for i,sigma in enumerate(allPossibleSigma):
     blobMask=blobs[i]
-    blobVisualObjsDict[round(sigma,2)]=visual.GratingStim(win, tex=None, mask=blobs[i],  units='pix', interpolate=False)
+    blobVisualObjsDict[round(sigma,1)]=visual.GratingStim(win, tex=None, mask=blobs[i],  units='pix', interpolate=False)
 
 
 # draw loading complete
@@ -395,7 +394,7 @@ conditions=sorted(conditions,reverse=True)
 from random import shuffle
 #region [rgba(20, 184, 196, 0.23)]
 shuffle(conditions)
-trainingN=5
+trainingN=0
 numTrails=len(conditions)+trainingN
 
 while trialNum < numTrails and not endExpNow:
@@ -403,18 +402,20 @@ while trialNum < numTrails and not endExpNow:
     if trialNum<trainingN:
         blob_width = minBlobExp
         minBlobWidth = blob_width
-        maxSgima = round(maxBlobExp,2)
+        maxSigma = round(maxBlobExp,2)
     else:
         blob_width = conditions[trialNum-trainingN]
-        minBlobWidth = blob_width#conditions[trialNum]
-        maxSgima= round((minBlobWidth+(maxBlobExp-minBlobExp)/2),2)
+        minBlobWidth = minBlobExp#blob_width#conditions[trialNum]
+        maxSigma= round((blob_width+(maxBlobExp-minBlobExp)/2),1)
+        maxSigma= conditions[trialNum-trainingN]
 
-    sigmaDynamic=generateWalkofSigmaDifficulty(meanSigma=minBlobWidth+(maxBlobExp-minBlobExp)//6,
+    sigmaDynamic=generateWalkofSigmaDifficulty(initSigma=None,
                                                 minSigma=minBlobWidth, 
-                                                maxSigma=maxSgima,velocity_std=1, duration=expectedDuration, incre=increments)
-    # print(sigmaDynamic[:100])
-    # print(sigmaDynamic.min())
-    # print(sigmaDynamic.max())
+                                                maxSigma=maxSigma,velocity_std=1, duration=expectedDuration, incre=increments)
+    #print(sigmaDynamic[:100])
+    print(sigmaDynamic.min())
+    print(sigmaDynamic.max())
+    print(sigmaDynamic.mean())
     if redoTrial:
         redoTrialText.draw()
         win.flip()
@@ -437,7 +438,7 @@ while trialNum < numTrails and not endExpNow:
         # redo the last blob_width
         continue
     if redoTrial==False:
-        sigma_trials.append(minBlobWidth)
+        sigma_trials.append(blob_width)
     _space2pass_allKeys = []
     space2pass.keys = []
     space2pass.clearEvents(eventType='keyboard')
@@ -535,7 +536,7 @@ while trialNum < numTrails and not endExpNow:
     randomBlob = (randomBlob - randomBlob.min()) / (randomBlob.max() - randomBlob.min())*2-1
 
     while continueRoutine:
-        blob_obj = blobVisualObjsDict[round(sigmaDynamic[realFrameN],2)]
+        blob_obj = blobVisualObjsDict[round(sigmaDynamic[realFrameN],1)]
         #print(sigmaDynamic[realFrameN])
 
         if realFrameN>len(pos_x_obj)-10:
