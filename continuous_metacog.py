@@ -4,7 +4,7 @@
 # ENS-PSL LSP, Cognitice Science Masters 2nd year thesis project
 # Supervisors: Guido Maiello and Pascal Mamassian
 
-response_type="both"
+response_type="mouse"
 
 if response_type=="both" or response_type=="eye":
     defaultMonitor='labMon'
@@ -106,7 +106,7 @@ mon=monitors.Monitor(expInfo['monitor'], width=screen_width, distance=screen_dis
 mon.setSizePix((sizeIs, sizeIs))
 
 win = visual.Window(size=(sizeIs,sizeIs),
-                     fullscr=True, 
+                     fullscr=False, 
                      monitor=mon, 
                     units='pix', 
                     color=[0, 0, 0],
@@ -209,6 +209,9 @@ You will be asked to follow the center of the blob with you eyes.
 Secondly, you need to continuously judge the difficulty of the task.
 Every moment you need to think about how well you are following compared to the previous moment.
 If you think you are doing it better you should slide the pen to upwards and if you think you are doing worse you should slide the pen downwards.
+While doint that try not to focus on the difficulty but focus on how well you are following the blob.
+Press any key to continue
+
 """
 def display_welcome_screen(text=welcomeTextt):
     welcomeText = visual.TextStim(win, text=text,
@@ -267,13 +270,15 @@ def generateBrownianMotion(field_size, velocity_std, duration):
     
 
 
-#region [rgba(11, 89, 23, 0.23)]
+#region [rgba(6, 72, 16, 0.23)]
 
 """ --------------- SIGMA DRIFT ----------------------         """
-def generateWalkofSigmaDifficulty(initSigma=15, velocity_std=1, duration=20, minSigma=5, maxSigma=35,incre=None):
+def generateWalkofSigmaDifficulty(meanSigma=None,  duration=20,span=None):
     num_frames = int(duration * expectedFrameRate) + toleranceTrialN
     sigma_width = np.zeros(num_frames)
-    meanSigma = round((maxSigma+minSigma)/2,2)  # Calculate the mean of the range
+    
+    minSigma = round(meanSigma-span/2,1)
+    maxSigma = round(meanSigma+span/2,1)
     sigma_width[0] = meanSigma  # Start from the meanSigma
 
     for i in range(1, num_frames):
@@ -291,7 +296,6 @@ def generateWalkofSigmaDifficulty(initSigma=15, velocity_std=1, duration=20, min
             sigma_width[i] = sigma_width[i-1] + np.random.choice(valid_increments)
     sigma_width=sigma_width.round(1)
     return sigma_width
-
 initK=-1.6
 increments=[]
 minIncrement=0.1
@@ -308,15 +312,58 @@ win.flip()
 noise_gen = NoiseGenerator(noise_size,noise_quantity=noiseQuantity)
 noise_obj = noise_gen.create_visual_objects(win)# Generate and draw noise objects
 
+
+"""        CONDITIONS         """
+#conditions=create_conditions(numOfBlocks=1, blob_widths=[11,19,28,40], repeats=5)
+
+#conditions= create_conditions(numOfBlocks=1, blob_widths=[13,17.5,22], repeats=1)
 # Generate sigma drift for all possible sigmas in the experiment
 minBlobExp=7
 maxBlobExp=40
-rangeTrial=(maxBlobExp-minBlobExp)//2
-conditions= create_conditions(numOfBlocks=1, blob_widths=[minBlobExp,(minBlobExp+rangeTrial//2),minBlobExp+rangeTrial], repeats=5)
+wholeSpan=(maxBlobExp-minBlobExp)
+lowSpan=round(wholeSpan/4,1)
+print("lowSpan",lowSpan)
+medSpan=round(wholeSpan/2,1)
+print("medSpan",medSpan)
+highSpan=round(wholeSpan,1)
+print("highSpan",highSpan)
+lowSigmaMean=minBlobExp+wholeSpan/4
+print(lowSigmaMean)
 
-conditions=create_conditions(numOfBlocks=1, blob_widths=[11,19,28,40], repeats=5)
+highSigmaMean=maxBlobExp-wholeSpan/4
+print(highSigmaMean)
 
-#conditions= create_conditions(numOfBlocks=1, blob_widths=[13,17.5,22], repeats=1)
+medSigmaMean=(lowSigmaMean+highSigmaMean)/2
+print(medSigmaMean)
+
+
+# conditions= create_conditions(numOfBlocks=1, blob_widths=[minBlobExp,(minBlobExp+rangeTrial//2),minBlobExp+rangeTrial], repeats=5)
+conditionsA=create_conditions(numOfBlocks=1, blob_widths=[lowSigmaMean,medSigmaMean,highSigmaMean], repeats=5)
+# create a list of spans
+spansA = [ medSpan,medSpan,medSpan]
+spansA= np.array(spansA)
+spansA= np.repeat(spansA, 5)
+# condition  with spans
+conditions_with_spans = np.column_stack((conditionsA, spansA))
+####################
+conditionsLowSpan=create_conditions(numOfBlocks=1, blob_widths=[medSigmaMean], repeats=5)
+conditionsHighSpan=create_conditions(numOfBlocks=1, blob_widths=[medSigmaMean], repeats=5)
+
+spanB=[highSpan,lowSpan]
+spanB= np.array(spanB)
+spanB= np.repeat(spanB, 5)
+spanHigh=spanB[:5]
+spanLow=spanB[5:]
+conditionsLowSpan=np.column_stack((conditionsLowSpan, spanLow))
+conditionsMedLowSpan=np.concatenate((conditionsLowSpan, conditions_with_spans))
+# shuffle the conditions med low span
+np.random.shuffle(conditionsMedLowSpan)
+conditionsHighSpan=np.column_stack((conditionsHighSpan, spanHigh))
+conditions=np.concatenate((conditionsHighSpan,conditionsMedLowSpan))
+
+"""       CONDITIONS         ENDED       """
+
+
 initial_blob_std= arcmin_to_px(arcmin=minBlobExp,h=screen_height,d=screen_distance,r=field_size[0]) 
 total_lum=200*(2*np.pi*initial_blob_std ** 2)*1 # Total luminance of blobm
 
@@ -384,34 +431,28 @@ haveRestText=visual.TextStim(win, text='Press space to continue', color=[1, 1, 1
 haveRestNum=1
 #####
 sigma_trials=[]
+span_trials=[]
 win.setMouseVisible(False)    
 
 # create a warning text to indicate the participant to look at the blob if they look 2dva away from the blob
 redoTrialText=visual.TextStim(win, text='Did you get distracted in last trial?\n Well now you need to redo do trial or press C to recalibrate or N to just go ahead!', color=[1, 1, 1], units='pix', height=20)
 redoTrial=False
 calibOkText=visual.TextStim(win, text='Is Calibration done? Are you ready to continue? (Y/N)', color=[1, 1, 1], units='pix', height=20)
-conditions=sorted(conditions,reverse=True)
+#conditions=sorted(conditions,reverse=True)
 from random import shuffle
 #region [rgba(20, 184, 196, 0.23)]
-shuffle(conditions)
+#shuffle(conditions)
 trainingN=0
 numTrails=len(conditions)+trainingN
 
 while trialNum < numTrails and not endExpNow:
     leftTrialsText=visual.TextStim(win, text='Trial: '+str(trialNum+1)+'/'+str(numTrails), color='red', units='pix', height=20, pos=(0,win.size[1]/8))
-    if trialNum<trainingN:
-        blob_width = minBlobExp
-        minBlobWidth = blob_width
-        maxSigma = round(maxBlobExp,2)
-    else:
-        blob_width = conditions[trialNum-trainingN]
-        minBlobWidth = minBlobExp#blob_width#conditions[trialNum]
-        maxSigma= round((blob_width+(maxBlobExp-minBlobExp)/2),1)
-        maxSigma= conditions[trialNum-trainingN]
 
-    sigmaDynamic=generateWalkofSigmaDifficulty(initSigma=None,
-                                                minSigma=minBlobWidth, 
-                                                maxSigma=maxSigma,velocity_std=1, duration=expectedDuration, incre=increments)
+    currentSigma=conditions[trialNum,0]
+    currentSpan=conditions[trialNum,1]
+    sigmaDynamic=generateWalkofSigmaDifficulty(meanSigma=currentSigma,
+                                               span=currentSpan,
+                                                duration=expectedDuration)
     #print(sigmaDynamic[:100])
     print(sigmaDynamic.min())
     print(sigmaDynamic.max())
@@ -438,7 +479,8 @@ while trialNum < numTrails and not endExpNow:
         # redo the last blob_width
         continue
     if redoTrial==False:
-        sigma_trials.append(blob_width)
+        sigma_trials.append(currentSigma)
+        span_trials.append(currentSpan)
     _space2pass_allKeys = []
     space2pass.keys = []
     space2pass.clearEvents(eventType='keyboard')
@@ -692,11 +734,11 @@ while trialNum < numTrails and not endExpNow:
     allRawMy.append(rawMy)
 
     stim_sigma = np.array(stim_sigma)
-    stim_sigma = np.insert(stim_sigma, 0, minBlobWidth)
+    stim_sigma = np.insert(stim_sigma, 0, currentSigma)
     allSigmaStim.append(stim_sigma)
 
     allRawStimSigma=np.array(rawStimSigma)
-    allRawStimSigma=np.insert(allRawStimSigma,0,minBlobExp)
+    allRawStimSigma=np.insert(allRawStimSigma,0,currentSigma)
 
 
 
@@ -732,20 +774,23 @@ filename = u'data/%s_%s_%s_%s' % (expInfo['participant'], response_type,expName,
 if eyeResp:
     sio.savemat(filename+'.mat', {'eyeX': allEyeX, 'eyeY': allEyeY, 'blob_x': all_stim_x, 'blob_y': all_stim_y, 'sigma': sigma_trials,
                                   'rawGazeX':allRawGazeX,'rawGazeY':allRawGazeY,
-                                  'rawStimX':allRawStimX,'rawStimY':allRawStimY})
+                                  'rawStimX':allRawStimX,'rawStimY':allRawStimY,
+                                  'span_trials':span_trials})
 elif mouseResp:
     sio.savemat(filename+'.mat', {'mouse_x': all_mouse_x, 'mouse_y': all_mouse_y, 'blob_x': all_stim_x, 'blob_y': all_stim_y, 'sigma': sigma_trials,
                                   'eyeX': all_mouse_x,
                                   'dynamicSigma':allSigmaStim,'rawSigmas':allRawStimSigma,
                                   'rawGazeX':allRawGazeX,'rawGazeY':allRawGazeY,
                                   'rawMouseX':allRawMx,'rawMouseY':allRawMy,
-                                  'rawStimX':allRawStimX,'rawStimY':allRawStimY})
+                                  'rawStimX':allRawStimX,'rawStimY':allRawStimY,
+                                  'span_trials':span_trials})
 elif combinedResp:
     sio.savemat(filename+'.mat', {'eyeX': allEyeX, 'eyeY': allEyeY, 
                                   'mouse_x': all_mouse_x, 'mouse_y': all_mouse_y, 'blob_x': all_stim_x, 'blob_y': all_stim_y,'sigma': sigma_trials,
                                   'dynamicSigma':allSigmaStim,'rawSigmas':allRawStimSigma,
                                   'rawGazeX':allRawGazeX,'rawGazeY':allRawGazeY,
                                   'rawMouseX':allRawMx,'rawMouseY':allRawMy,
-                                  'rawStimX':allRawStimX,'rawStimY':allRawStimY})
+                                  'rawStimX':allRawStimX,'rawStimY':allRawStimY,
+                                  'span_trials':span_trials})
 
 core.quit()
