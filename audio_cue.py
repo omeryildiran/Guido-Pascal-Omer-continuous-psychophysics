@@ -1,3 +1,9 @@
+"""
+Coded by Omer Yildiran subject to attribution- noncommercial 4.0 International (CC BY-NC 4.0) license
+Start Date: 12/2023
+
+"""
+
 import numpy as np
 
 def generate_beep_sound(duration, sample_rate, beep_frequency):
